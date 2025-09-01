@@ -1,0 +1,116 @@
+name: inspection
+description: "A new Flutter project."
+
+publish_to: 'none'
+
+
+version: 1.0.0+7
+
+environment:
+  sdk: ^3.9.0
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+
+  cupertino_icons: ^1.0.8
+
+  # UTILITIES
+  lottie: ^3.3.1
+  smooth_page_indicator: ^1.2.0+3
+  iconsax: ^0.0.8
+  carousel_slider: ^5.0.0
+  readmore: ^3.0.0
+  connectivity_plus: ^6.1.3
+  shimmer: ^3.0.0
+  image_picker: ^1.1.2
+  dio: ^5.8.0+1
+  crypto: ^3.0.6
+  cached_network_image: ^3.4.1
+
+  intl: ^0.20.2
+  flutter_branch_sdk: ^8.5.0
+  file_picker: ^10.2.0
+  geolocator: ^14.0.2
+  shared_preferences: ^2.5.3
+  go_router: ^5.0.0
+  path_provider: ^2.1.4
+  flutter_app_installer: ^1.0.2
+
+
+
+  flutter_secure_storage: ^9.2.4
+  alice: ^1.0.0-dev.12
+  pinput: ^5.0.1
+  fluttertoast: ^8.2.12
+  flutter_launcher_icons: ^0.14.4
+  package_info_plus: ^8.3.0
+  permission_handler: ^11.4.0
+  android_intent_plus: ^5.3.1
+  flutter_riverpod: ^2.6.1
+  email_validator: ^3.0.0
+  jwt_decoder: ^2.0.1
+  app_installer_plus: ^1.0.0
+  flutter_localization: ^0.3.3
+
+
+
+#--------------------------------------
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+
+  package_rename: ^1.9.0
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.6
+  retrofit_generator: ^5.0.0
+  json_serializable: ^6.7.1
+
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo/appLogo.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/icons/foreground.png"
+
+
+flutter:
+
+  uses-material-design: true
+
+  #--------[ASSETS]------------
+  assets:
+    - assets/logo/
+    - assets/animations/
+    - assets/images/
+    - assets/icons/payment_methods/
+    - assets/icons/categories/
+    - assets/icons/
+
+
+  #--------[FONTS]------------
+  fonts:
+    - family: Ubuntu
+      fonts:
+        - asset: assets/fonts/Ubuntu-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Ubuntu-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Ubuntu-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Ubuntu-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Ubuntu-MediumItalic.ttf
+          weight: 500
+          style: italic
+        - asset: assets/fonts/Ubuntu-Bold.ttf
+          weight: 700   # <- change from 800 to 700 (recommended)
+        # - asset: assets/fonts/Ubuntu-BoldItalic.ttf
+        #   weight: 700
+        #   style: italic

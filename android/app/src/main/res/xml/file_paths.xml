@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Internal storage -->
+    <external-path name="external_storage_root" path="." />
+
+    <!-- External storage -->
+    <external-files-path name="external_files" path="." />
+
+    <!-- Cache directory -->
+    <cache-path name="cache" path="." />
+
+    <!-- External cache directory -->
+    <external-cache-path name="external_cache" path="." />
+
+    <!-- Files directory (internal app storage) -->
+    <files-path name="files" path="." />
+
+    <!-- Root of internal app files dir -->
+    <root-path name="root" path="." />
+
+    <!-- Data directory -->
+    <files-path name="app_flutter" path="app_flutter/" />
+    <files-path name="downloads" path="app_flutter/downloads/" />
+</paths>
