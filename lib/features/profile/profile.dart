@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inspection/app/router/routes.dart'; // Ensure Routes is imported
 import 'package:iconsax/iconsax.dart';
 import 'package:inspection/features/profile/provider/user_profile_provider.dart';
 
@@ -27,17 +28,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.initState();
     // Trigger profile fetch when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(userProfileNotifierProvider.notifier).fetchUserProfile();
+      if (mounted) {
+        ref.read(userProfileNotifierProvider.notifier).fetchUserProfile();
+      }
     });
   }
-
 
   Future<void> _checkForUpdates() async {
     final updateChecker = ref.read(updateCheckerProvider);
     final result = await updateChecker.checkForUpdates();
 
     if (result != null && result['isUpdateAvailable'] == true) {
-      // Use the instance method instead of static method
       updateChecker.showUpdateDialog(
         context,
         result['isMandatory'],
@@ -46,7 +47,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         result['versionName'],
       );
     } else {
-      // Show message that app is up to date
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result?['message'] ?? 'App is up to date'),
@@ -56,57 +56,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-
   Future<void> _performLogout() async {
     print('=== STARTING LOGOUT PROCESS ===');
 
-    // Step 1: Clear token with debug info
-    await TokenStorage.clearToken();
+    try {
+      // Step 1: Clear profile state
+      ref.read(userProfileNotifierProvider.notifier).resetProfile();
+      print('✅ Profile state cleared');
 
-    // Step 2: Clear remember me preference during logout
-    final storageService = ref.read(storageServiceProvider);
-    await storageService.setRememberMe(false);
-    print('🗑️ Remember me preference cleared');
+      // Step 2: Clear token using TokenStorage
+      await TokenStorage.clearToken();
+      print('✅ Token cleared');
 
-    // Step 3: Verify token is actually cleared
-    final tokenAfterClear = await TokenStorage.getToken();
-    print(
-      '🔍 Token verification after clear: ${tokenAfterClear == null ? "SUCCESS" : "FAILED"}',
-    );
+      // Step 3: Clear remember me preference
+      final storageService = ref.read(storageServiceProvider);
+      await storageService.setRememberMe(false);
+      print('✅ Remember me preference cleared');
 
-    // Step 4: Clear profile state
-    ref.read(userProfileNotifierProvider.notifier).clearProfile();
-  }
+      // Step 4: Verify token is cleared
+      final isCleared = await TokenStorage.isTokenCleared();
+      print('🔍 Token clearance verification: ${isCleared ? "SUCCESS" : "FAILED"}');
 
-  void _navigateToSignIn() {
-    // Use a post-frame callback to ensure navigation happens after build cycle
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Try different navigation approaches
-      try {
-        // Method 1: Use replace (clears navigation history)
-        context.replace('/signin');
-        print('✅ Navigation successful using replace');
-      } catch (e) {
-        print('❌ Error with replace: $e');
-        try {
-          // Method 2: Use go as fallback
-          context.go('/signin');
-          print('✅ Navigation successful using go');
-        } catch (e) {
-          print('❌ Error with go: $e');
-          try {
-            // Method 3: Last resort - use navigator with root navigator
-            Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-              (route) => false,
-            );
-            print('✅ Navigation successful using Navigator');
-          } catch (e) {
-            print('❌ All navigation methods failed: $e');
-          }
-        }
-      }
-    });
+      // Step 5: Invalidate providers to ensure clean state
+      ref.invalidate(userProfileNotifierProvider);
+      print('✅ User profile provider invalidated');
+    } catch (e) {
+      print('❌ Error during logout: $e');
+      rethrow; // Let the error propagate to _handleLogout
+    }
   }
 
   Future<void> _handleLogout() async {
@@ -129,16 +106,40 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
 
     if (shouldLogout == true) {
-      // Close the dialog first
-      if (Navigator.canPop(context)) {
-        Navigator.of(context, rootNavigator: true).pop();
+      try {
+        // Show loading indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Logging out...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Perform logout operations
+        await _performLogout();
+
+        // Navigate to sign-in screen with replacement
+        if (context.mounted) {
+          // Clear the navigation stack and go to sign-in
+          while (GoRouter.of(context).canPop()) {
+            GoRouter.of(context).pop();
+          }
+          context.go(Routes.signIn);
+          print('✅ Navigation to sign-in screen successful');
+        } else {
+          print('❌ Context not mounted for navigation');
+        }
+      } catch (e) {
+        print('❌ Logout process failed: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Logout failed: $e'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
-
-      // Perform logout operations
-      await _performLogout();
-
-      // Navigate to sign in screen
-      _navigateToSignIn();
     }
   }
 
@@ -164,9 +165,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
-                  ref
-                      .read(userProfileNotifierProvider.notifier)
-                      .fetchUserProfile();
+                  if (mounted) {
+                    ref
+                        .read(userProfileNotifierProvider.notifier)
+                        .fetchUserProfile();
+                  }
                 },
                 child: const Text('Retry'),
               ),
@@ -185,12 +188,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     CircleAvatar(
                       radius: 50,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primary.withAlpha(20),
-                      backgroundImage: const AssetImage(
-                        'assets/logo/appLogo.png',
-                      ),
+                      backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(20),
+                      backgroundImage: const AssetImage('assets/logo/appLogo.png'),
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -219,9 +218,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 title: const Text('Update Name'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  final nameController = TextEditingController(
-                    text: user?.name ?? '',
-                  );
+                  final nameController = TextEditingController(text: user?.name ?? '');
 
                   showDialog(
                     context: context,
@@ -263,9 +260,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 title: const Text('Update Email'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  final emailController = TextEditingController(
-                    text: user?.email ?? '',
-                  );
+                  final emailController = TextEditingController(text: user?.email ?? '');
 
                   showDialog(
                     context: context,
@@ -315,9 +310,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       title: const Text('Update Password'),
                       content: TextField(
                         controller: passwordController,
-                        decoration: const InputDecoration(
-                          labelText: 'New Password',
-                        ),
+                        decoration: const InputDecoration(labelText: 'New Password'),
                         obscureText: true,
                       ),
                       actions: [
@@ -331,8 +324,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             if (newPass.length < 6) {
                               UAlert.show(
                                 title: 'Error',
-                                message:
-                                    'Password must be at least 6 characters',
+                                message: 'Password must be at least 6 characters',
                                 context: context,
                               );
                               return;
@@ -354,9 +346,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 trailing: Switch(
                   value: isDark,
                   onChanged: (value) {
-                    ref.read(themeModeProvider.notifier).state = value
-                        ? ThemeMode.dark
-                        : ThemeMode.light;
+                    ref.read(themeModeProvider.notifier).state =
+                    value ? ThemeMode.dark : ThemeMode.light;
                   },
                 ),
               ),
@@ -374,17 +365,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: _checkForUpdates,
               ),
+
               /// App Version
               const Divider(),
               ListTile(
                 leading: const Icon(Iconsax.information),
                 title: const Text('App Version'),
-                trailing: Text('1.0.0'),
+                trailing: const Text('1.0.0'),
               ),
               ListTile(
                 leading: const Icon(Iconsax.code),
                 title: const Text('Build Number'),
-                trailing: Text('100'),
+                trailing: const Text('100'),
               ),
             ],
           );

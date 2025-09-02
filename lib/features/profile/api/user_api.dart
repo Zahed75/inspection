@@ -16,9 +16,22 @@ final userApiServiceProvider = Provider<UserApiService>((ref) {
 class UserApiService {
   final Dio _dio;
 
+
   UserApiService(this._dio);
 
+  // Add this method to check if token exists before making API calls
+  Future<bool> _hasValidToken() async {
+    final token = await TokenStorage.getToken();
+    return token != null && token.isNotEmpty;
+  }
+
   Future<GetUserInfoModel> getUserProfile() async {
+    // Check if we have a valid token first
+    if (!await _hasValidToken()) {
+      print('❌ No valid token available for profile fetch');
+      throw Exception('Authentication token is missing or invalid');
+    }
+
     try {
       final token = await TokenStorage.getToken();
       if (token == null) {
@@ -42,9 +55,6 @@ class UserApiService {
       if (response.statusCode == 200) {
         print('✅ User profile data received');
 
-        // Debug: Print the raw response to see what's causing the issue
-        print('📋 Raw response data: ${response.data}');
-
         try {
           final userProfile = GetUserInfoModel.fromJson(response.data);
           print('✅ User profile parsed successfully');
@@ -62,6 +72,12 @@ class UserApiService {
       print('❌ Error Type: ${e.type}');
       print('❌ Response status: ${e.response?.statusCode}');
       print('❌ Response data: ${e.response?.data}');
+
+      if (e.response?.statusCode == 401) {
+        // Token is invalid, clear it
+        await TokenStorage.clearToken();
+        throw Exception('Session expired. Please login again.');
+      }
 
       if (e.response != null) {
         throw Exception(
