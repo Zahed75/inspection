@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../app/router/routes.dart';
 import '../../common_ui/widgets/alerts/u_alert.dart';
+import '../../features/site/provider/selected_site_provider.dart';
 import '../../utils/constants/colors.dart';
 import '../../utils/constants/texts.dart';
 import '../site/site_location.dart';
@@ -21,7 +22,6 @@ final surveysProvider = StateProvider<List<SurveyData>>((ref) => []);
 final siteCodeProvider = StateProvider<String>((ref) => 'Loading...');
 final siteNameProvider = StateProvider<String>((ref) => '');
 final errorMessageProvider = StateProvider<String?>((ref) => null);
-final selectedSiteProvider = StateProvider<Map<String, String>?>((ref) => null);
 
 // HomeScreen UI
 class HomeScreen extends ConsumerStatefulWidget {
@@ -51,10 +51,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (siteCode != null && siteName != null) {
         ref.read(siteCodeProvider.notifier).state = siteCode;
         ref.read(siteNameProvider.notifier).state = siteName;
-        ref.read(selectedSiteProvider.notifier).state = {
-          'site_code': siteCode,
-          'name': siteName,
-        };
+        ref.read(selectedSiteProvider.notifier).state = SelectedSite(
+          siteCode: siteCode,
+          name: siteName,
+        );
       } else {
         ref.read(siteCodeProvider.notifier).state = 'Select Site';
         ref.read(siteNameProvider.notifier).state = '';
@@ -65,6 +65,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // Fetch surveys from API
+  // In your _fetchSurveys method in home.dart
   Future<void> _fetchSurveys() async {
     final surveyApi = ref.read(surveyApiProvider);
     final selectedSite = ref.read(selectedSiteProvider);
@@ -73,21 +74,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.read(errorMessageProvider.notifier).state = null;
 
     try {
-      final surveyList = await surveyApi.getSurveysByUser();
+      // Pass the site code to the API call
+      final surveyList = await surveyApi.getSurveysByUser(
+        siteCode: selectedSite?.siteCode,
+      );
 
       if (surveyList.data != null && surveyList.data!.isNotEmpty) {
-        // Filter surveys by selected site code if a site is selected
-        List<SurveyData> filteredSurveys;
-        if (selectedSite != null && selectedSite['site_code'] != null) {
-          final siteCode = selectedSite['site_code']!;
-          filteredSurveys = surveyList.data!.where((survey) {
-            return survey.siteCode == siteCode;
-          }).toList();
-        } else {
-          filteredSurveys = surveyList.data!;
-        }
-
-        ref.read(surveysProvider.notifier).state = filteredSurveys;
+        // The API should now return filtered surveys, so no need for client-side filtering
+        ref.read(surveysProvider.notifier).state = surveyList.data!;
       } else {
         ref.read(surveysProvider.notifier).state = [];
       }
@@ -98,7 +92,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         UAlert.show(
           title: 'Error',
           message:
-              'Failed to load surveys: ${e.toString().replaceAll('Exception: ', '')}',
+          'Failed to load surveys: ${e.toString().replaceAll('Exception: ', '')}',
           context: context,
         );
       });
@@ -116,15 +110,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
 
-    if (selectedSite != null && selectedSite is Map<String, String>) {
+    if (selectedSite != null && selectedSite is SelectedSite) {
       // Save selected site to shared preferences
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('selected_site', selectedSite['site_code']!);
-      await prefs.setString('selected_site_name', selectedSite['name']!);
+      await prefs.setString('selected_site', selectedSite.siteCode);
+      await prefs.setString('selected_site_name', selectedSite.name);
 
       // Update providers
-      ref.read(siteCodeProvider.notifier).state = selectedSite['site_code']!;
-      ref.read(siteNameProvider.notifier).state = selectedSite['name']!;
+      ref.read(siteCodeProvider.notifier).state = selectedSite.siteCode;
+      ref.read(siteNameProvider.notifier).state = selectedSite.name;
       ref.read(selectedSiteProvider.notifier).state = selectedSite;
 
       // Refresh surveys for the selected site
@@ -134,8 +128,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _onStartSurvey(SurveyData survey) {
     final selectedSite = ref.read(selectedSiteProvider);
-    final siteCode =
-        selectedSite?['site_code'] ?? ''; // Get site code from provider
+    final siteCode = selectedSite?.siteCode ?? ''; // Get site code from provider
 
     // Pass the selected survey data AND site code to QuestionScreen
     context.go(
@@ -184,7 +177,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     'Home',
                     style: Theme.of(context).textTheme.titleLarge!.copyWith(
                       fontWeight: FontWeight.w900,
-                      color: UColors.warning,
+                      color: UColors.darkerGrey,
                     ),
                   ),
                   // Alternative: Icon on the right side
@@ -202,9 +195,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.titleMedium!
                                     .copyWith(
-                                      color: UColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  color: UColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                             if (siteName.isNotEmpty)
@@ -251,82 +244,82 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : RefreshIndicator(
-                        onRefresh: _fetchSurveys,
-                        child: surveys.isEmpty
-                            ? ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                children: [
-                                  const SizedBox(height: 120),
-                                  Center(
-                                    child: Column(
-                                      children: [
-                                        Text(
-                                          'No surveys available',
-                                          style: TextStyle(
-                                            color: subtitleColor,
-                                          ),
-                                        ),
-                                        if (siteCode != 'Select Site')
-                                          Text(
-                                            'for site: $siteCode',
-                                            style: TextStyle(
-                                              color: subtitleColor,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        const SizedBox(height: 16),
-                                        ElevatedButton(
-                                          onPressed: _openSiteLocation,
-                                          child: const Text('Change Site'),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : ListView.builder(
-                                itemCount: surveys.length,
-                                itemBuilder: (context, index) {
-                                  final survey = surveys[index];
-                                  final questionCount =
-                                      survey.questions?.length ?? 0;
-                                  final estimatedTime =
-                                      questionCount * 1; // 1 min per question
-
-                                  return Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (index == 0)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 12,
-                                            top: 8,
-                                          ),
-                                          child: Text(
-                                            UTexts.availabileSurvey,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleLarge!
-                                                .copyWith(
-                                                  color: textColor,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                          ),
-                                        ),
-                                      SurveyInfo(
-                                        title:
-                                            survey.title ?? 'Untitled Survey',
-                                        totalQuestions: questionCount,
-                                        estimatedTime: '$estimatedTime min',
-                                        onStart: () => _onStartSurvey(survey),
-                                      ),
-                                      const SizedBox(height: 16),
-                                    ],
-                                  );
-                                },
+                  onRefresh: _fetchSurveys,
+                  child: surveys.isEmpty
+                      ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      const SizedBox(height: 120),
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              'No surveys available',
+                              style: TextStyle(
+                                color: subtitleColor,
                               ),
+                            ),
+                            if (siteCode != 'Select Site')
+                              Text(
+                                'for site: $siteCode',
+                                style: TextStyle(
+                                  color: subtitleColor,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _openSiteLocation,
+                              child: const Text('Change Site'),
+                            ),
+                          ],
+                        ),
                       ),
+                    ],
+                  )
+                      : ListView.builder(
+                    itemCount: surveys.length,
+                    itemBuilder: (context, index) {
+                      final survey = surveys[index];
+                      final questionCount =
+                          survey.questions?.length ?? 0;
+                      final estimatedTime =
+                          questionCount * 1; // 1 min per question
+
+                      return Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                        children: [
+                          if (index == 0)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: 12,
+                                top: 8,
+                              ),
+                              child: Text(
+                                UTexts.availabileSurvey,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge!
+                                    .copyWith(
+                                  color: textColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          SurveyInfo(
+                            title:
+                            survey.title ?? 'Untitled Survey',
+                            totalQuestions: questionCount,
+                            estimatedTime: '$estimatedTime min',
+                            onStart: () => _onStartSurvey(survey),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ],

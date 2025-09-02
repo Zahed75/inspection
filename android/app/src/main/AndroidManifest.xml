@@ -17,7 +17,7 @@
     <application
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:label="inspection"
+        android:label="Survey"
         android:requestLegacyExternalStorage="true">
 
         <activity

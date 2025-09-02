@@ -9,6 +9,7 @@ import 'features/home/home.dart';
 import 'features/profile/profile.dart';
 import 'features/result/provider/responseId_provider.dart';
 import 'features/result/result.dart';
+import 'features/site/provider/selected_site_provider.dart';
 
 
 final selectedIndexProvider = StateProvider<int>((ref) => 0);
@@ -20,9 +21,16 @@ class NavigationMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final index = ref.watch(selectedIndexProvider);
-    final latestResponseId = ref.watch(
-      latestResponseIdProvider,
-    ); // Get latest response ID
+    final latestResponseId = ref.watch(latestResponseIdProvider);
+    final selectedSite = ref.watch(selectedSiteProvider);
+
+    // Refresh surveys when home tab is selected and site is available
+    if (index == 0 && selectedSite != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Invalidate any survey-related providers to force refresh
+        ref.invalidate(surveysProvider);
+      });
+    }
 
     Widget body;
     switch (index) {
@@ -30,31 +38,31 @@ class NavigationMenu extends ConsumerWidget {
         body = const HomeScreen();
         break;
       case 1:
-        // Show ResultScreen if we have a latest response ID, otherwise show placeholder
+      // Show ResultScreen if we have a latest response ID, otherwise show placeholder
         body = latestResponseId != null && latestResponseId > 0
             ? ResultScreen(responseId: latestResponseId)
             : const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.history, size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text(
-                      'Survey History',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Complete surveys to see your history here',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.history, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Survey History',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
-              );
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Complete surveys to see your history here',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        );
         break;
       case 2:
         body = const DashboardScreen();

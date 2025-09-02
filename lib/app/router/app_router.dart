@@ -1,5 +1,4 @@
 // lib/app/router/app_router.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,10 +50,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return OtpVerifyScreen(phoneNumber: phoneNumber, otp: otp);
         },
       ),
+      // When navigating to home after site selection, make sure the site is preserved
+      // In your GoRouter configuration, add this to the home route:
       GoRoute(
-        path: '/home', // Must start with /
+        path: '/home',
         name: Routes.home,
-        builder: (context, state) => const NavigationMenu(),
+        pageBuilder: (context, state) {
+          return MaterialPage(
+            child: const NavigationMenu(),
+            key: state.pageKey, // This preserves state
+          );
+        },
       ),
       GoRoute(
         path: Routes.question,

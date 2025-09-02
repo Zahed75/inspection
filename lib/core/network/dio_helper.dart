@@ -12,8 +12,8 @@ class DioHelper {
   final Options baseOptions = Options(
     receiveDataWhenStatusError: true,
     contentType: "application/json",
-    sendTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(seconds: 30),
+    sendTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 10),
     headers: {'accept': 'application/json'},
   );
 

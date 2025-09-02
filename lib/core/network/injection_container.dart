@@ -7,8 +7,8 @@ Dio getDio() {
   final dio = Dio(
     BaseOptions(
       baseUrl: '', // <— IMPORTANT: one place to set base url
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
       headers: {'Accept': 'application/json'},
     ),
   );

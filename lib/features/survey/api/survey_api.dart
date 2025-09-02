@@ -1,17 +1,15 @@
-
+// lib/features/survey/api/survey_api.dart
 import 'package:dio/dio.dart';
-
 import '../../../core/config/env.dart';
 import '../../../utils/constants/token_storage.dart';
-import '../model/survey_list_model.dart';
-
+import '../../home/model/survey_list_model.dart';
 
 class SurveyApi {
   final Dio _dio;
 
   SurveyApi(this._dio);
 
-  // lib/features/survey/api/survey_api.dart
+  // In your getSurveysByUser method, add the siteCode parameter
   // lib/features/survey/api/survey_api.dart
   Future<SurveyListModel> getSurveysByUser({String? siteCode}) async {
     try {
@@ -28,7 +26,7 @@ class SurveyApi {
 
       final response = await _dio.get(
         '${Env.surveyBaseUrl}/survey/api/survey_by_user/',
-        queryParameters: queryParams.isEmpty ? null : queryParams,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',

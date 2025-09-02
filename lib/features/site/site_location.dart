@@ -131,6 +131,8 @@ class SiteLocation extends ConsumerWidget {
                       final siteName = site.name ?? 'Unknown Site';
 
                       return GestureDetector(
+                        // In the onTap handler of your site grid items:
+
                         onTap: () async {
                           final selected = SelectedSite(
                             siteCode: siteCode,
@@ -141,14 +143,11 @@ class SiteLocation extends ConsumerWidget {
                           await saveSelectedSite(selected);
 
                           // ✅ Update global provider (triggers listeners)
-                          ref.read(selectedSiteProvider.notifier).state =
-                              selected;
+                          ref.read(selectedSiteProvider.notifier).state = selected;
 
                           // If you have a survey provider that depends on selected site,
-                          // uncomment to force refetch immediately:
-                          // ref.invalidate(surveyListProvider);
-
-                          // Return selection if this screen was opened modally
+                          // force refetch immediately:
+                          // This will trigger the home screen to refresh surveys
                           if (isSelectionMode) {
                             Navigator.of(context).pop(selected);
                           }
