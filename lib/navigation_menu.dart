@@ -24,13 +24,7 @@ class NavigationMenu extends ConsumerWidget {
     final latestResponseId = ref.watch(latestResponseIdProvider);
     final selectedSite = ref.watch(selectedSiteProvider);
 
-    // Refresh surveys when home tab is selected and site is available
-    if (index == 0 && selectedSite != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Invalidate any survey-related providers to force refresh
-        ref.invalidate(surveysProvider);
-      });
-    }
+
 
     Widget body;
     switch (index) {

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inspection/app/router/root_nav_key.dart';
 import 'package:inspection/app/router/routes.dart';
-import 'package:inspection/app/router/go_router_refresh.dart'; // Add this import
+import 'package:inspection/app/router/go_router_refresh.dart';
 
 import '../../features/onboarding/onBoarding.dart';
 import '../../features/profile/profile.dart';
@@ -53,17 +53,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/home',
         name: Routes.home,
-        pageBuilder: (context, state) {
-          return MaterialPage(
-            child: const NavigationMenu(),
-            key: state.pageKey,
-          );
-        },
+        builder: (context, state) => const NavigationMenu(), // Changed from pageBuilder to builder
       ),
       GoRoute(
         path: Routes.siteLocation,
         name: Routes.siteLocation,
-        builder: (context, state) => const SiteLocation(isSelectionMode: true),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          final isSelectionMode = extra['isSelectionMode'] ?? false;
+          return SiteLocation(isSelectionMode: isSelectionMode);
+        },
       ),
       GoRoute(
         path: Routes.question,
@@ -104,15 +103,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
     redirect: (context, state) {
-      // Use location instead of matchedLocation
       final location = state.location;
       final isSplash = location == '/splash';
       final isOnboarding = location == '/onboarding';
       final isLogin = location == '/signin';
       final isOtpVerify = location == '/otp-verify';
-      final isSiteLocation = location == '/site-location'; // Add this
+      final isSiteLocation = location == '/site-location';
 
-      final isPublicRoute = isSplash || isOnboarding || isLogin || isOtpVerify || isSiteLocation; // Include site-location
+      final isPublicRoute = isSplash || isOnboarding || isLogin || isOtpVerify || isSiteLocation;
 
       // If not authenticated and trying to access protected route, redirect to login
       if (!isAuthenticated && !isPublicRoute) {
@@ -122,11 +120,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // If authenticated and trying to access login/splash, redirect to home
       if (isAuthenticated && (isLogin || isSplash)) {
         return '/home';
-      }
-
-      // ✅ Allow authenticated users to access site-location
-      if (isAuthenticated && isSiteLocation) {
-        return null; // Allow access to site-location
       }
 
       return null;

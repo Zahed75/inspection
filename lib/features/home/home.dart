@@ -1,5 +1,4 @@
 // lib/features/home/home.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,6 +37,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSelectedSite();
       _fetchSurveys();
+
+      // Listen for site selection changes
+      ref.listen(selectedSiteProvider, (previous, next) {
+        if (next != null && next != previous) {
+          print('📍 Site changed to: ${next.siteCode}');
+          _fetchSurveys(); // Refresh surveys when site changes
+        }
+      });
     });
   }
 
@@ -45,8 +52,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _loadSelectedSite() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final siteCode = prefs.getString('selected_site');
-      final siteName = prefs.getString('selected_site_name');
+      final siteCode = prefs.getString(SiteLocation.selectedSiteKey);
+      final siteName = prefs.getString(SiteLocation.selectedSiteNameKey);
 
       if (siteCode != null && siteName != null) {
         ref.read(siteCodeProvider.notifier).state = siteCode;
@@ -65,7 +72,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   // Fetch surveys from API
-  // In your _fetchSurveys method in home.dart
   Future<void> _fetchSurveys() async {
     final surveyApi = ref.read(surveyApiProvider);
     final selectedSite = ref.read(selectedSiteProvider);
@@ -74,25 +80,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.read(errorMessageProvider.notifier).state = null;
 
     try {
-      // Pass the site code to the API call
       final surveyList = await surveyApi.getSurveysByUser(
         siteCode: selectedSite?.siteCode,
       );
 
       if (surveyList.data != null && surveyList.data!.isNotEmpty) {
-        // The API should now return filtered surveys, so no need for client-side filtering
         ref.read(surveysProvider.notifier).state = surveyList.data!;
       } else {
         ref.read(surveysProvider.notifier).state = [];
       }
     } catch (e) {
       ref.read(errorMessageProvider.notifier).state = e.toString();
-      // Show error alert
       WidgetsBinding.instance.addPostFrameCallback((_) {
         UAlert.show(
           title: 'Error',
-          message:
-          'Failed to load surveys: ${e.toString().replaceAll('Exception: ', '')}',
+          message: 'Failed to load surveys: ${e.toString().replaceAll('Exception: ', '')}',
           context: context,
         );
       });
@@ -101,36 +103,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  // Handle site selection
+  // Open site location screen
   Future<void> _openSiteLocation() async {
-    final selectedSite = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const SiteLocation(isSelectionMode: true),
-      ),
-    );
-
-    if (selectedSite != null && selectedSite is SelectedSite) {
-      // Save selected site to shared preferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('selected_site', selectedSite.siteCode);
-      await prefs.setString('selected_site_name', selectedSite.name);
-
-      // Update providers
-      ref.read(siteCodeProvider.notifier).state = selectedSite.siteCode;
-      ref.read(siteNameProvider.notifier).state = selectedSite.name;
-      ref.read(selectedSiteProvider.notifier).state = selectedSite;
-
-      // Refresh surveys for the selected site
-      _fetchSurveys();
-    }
+    print('📱 Opening site location screen...');
+    context.push(Routes.siteLocation, extra: {'isSelectionMode': true});
   }
 
   void _onStartSurvey(SurveyData survey) {
     final selectedSite = ref.read(selectedSiteProvider);
-    final siteCode = selectedSite?.siteCode ?? ''; // Get site code from provider
+    final siteCode = selectedSite?.siteCode ?? '';
 
-    // Pass the selected survey data AND site code to QuestionScreen
     context.go(
       Routes.question,
       extra: {'survey_data': survey.toJson(), 'site_code': siteCode},
@@ -144,12 +126,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final siteName = ref.watch(siteNameProvider);
     final surveys = ref.watch(surveysProvider);
     final errorMessage = ref.watch(errorMessageProvider);
-
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final subtitleColor = isDark ? Colors.white70 : Colors.black54;
     final textColor = isDark ? UColors.white : UColors.dark;
 
-    // Show error message if exists
     if (errorMessage != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         UAlert.show(title: 'Error', message: errorMessage, context: context);
@@ -161,26 +141,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'assets/icons/circleIcon.png',
-                    width: 24,
-                    height: 24,
-                  ),
-                  Text(
-                    'Home',
-                    style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: UColors.darkerGrey,
-                    ),
-                  ),
-                  // Alternative: Icon on the right side
+                  Image.asset('assets/icons/circleIcon.png', width: 24, height: 24),
+                  Text('Home', style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                    fontWeight: FontWeight.w900, color: UColors.darkerGrey,
+                  )),
                   GestureDetector(
                     onTap: _openSiteLocation,
                     child: Row(
@@ -190,36 +160,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 100),
-                              child: Text(
-                                siteCode,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleMedium!
-                                    .copyWith(
-                                  color: UColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                              child: Text(siteCode, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                                color: UColors.primary, fontWeight: FontWeight.w600,
+                              )),
                             ),
-                            if (siteName.isNotEmpty)
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 100,
-                                ),
-                                child: Text(
-                                  siteName,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall!
-                                      .copyWith(color: UColors.darkGrey),
-                                ),
-                              ),
+                            if (siteName.isNotEmpty) ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 100),
+                              child: Text(siteName, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: UColors.darkGrey)),
+                            ),
                           ],
                         ),
                         const SizedBox(width: 6),
-                        Icon(
-                          Iconsax.location, // Location icon
-                          size: 18,
-                          color: UColors.primary,
-                        ),
+                        Icon(Iconsax.location, size: 18, color: UColors.primary),
                       ],
                     ),
                   ),
@@ -227,89 +179,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             const SizedBox(height: 4),
-
-            // Content
             Expanded(
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: isDark ? Colors.black12 : Colors.grey[100],
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
-                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 ),
-                child: isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : RefreshIndicator(
+                child: isLoading ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(
                   onRefresh: _fetchSurveys,
-                  child: surveys.isEmpty
-                      ? ListView(
+                  child: surveys.isEmpty ? ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     children: [
                       const SizedBox(height: 120),
                       Center(
                         child: Column(
                           children: [
-                            Text(
-                              'No surveys available',
-                              style: TextStyle(
-                                color: subtitleColor,
-                              ),
-                            ),
-                            if (siteCode != 'Select Site')
-                              Text(
-                                'for site: $siteCode',
-                                style: TextStyle(
-                                  color: subtitleColor,
-                                  fontSize: 12,
-                                ),
-                              ),
+                            Text('No surveys available', style: TextStyle(color: subtitleColor)),
+                            if (siteCode != 'Select Site') Text('for site: $siteCode', style: TextStyle(color: subtitleColor, fontSize: 12)),
                             const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _openSiteLocation,
-                              child: const Text('Change Site'),
-                            ),
+                            ElevatedButton(onPressed: _openSiteLocation, child: const Text('Change Site')),
                           ],
                         ),
                       ),
                     ],
-                  )
-                      : ListView.builder(
+                  ) : ListView.builder(
                     itemCount: surveys.length,
                     itemBuilder: (context, index) {
                       final survey = surveys[index];
-                      final questionCount =
-                          survey.questions?.length ?? 0;
-                      final estimatedTime =
-                          questionCount * 1; // 1 min per question
+                      final questionCount = survey.questions?.length ?? 0;
+                      final estimatedTime = questionCount * 1;
 
                       return Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (index == 0)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: 12,
-                                top: 8,
-                              ),
-                              child: Text(
-                                UTexts.availabileSurvey,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge!
-                                    .copyWith(
-                                  color: textColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
+                          if (index == 0) Padding(
+                            padding: const EdgeInsets.only(bottom: 12, top: 8),
+                            child: Text(UTexts.availabileSurvey, style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                              color: textColor, fontWeight: FontWeight.bold,
+                            )),
+                          ),
                           SurveyInfo(
-                            title:
-                            survey.title ?? 'Untitled Survey',
+                            title: survey.title ?? 'Untitled Survey',
                             totalQuestions: questionCount,
                             estimatedTime: '$estimatedTime min',
                             onStart: () => _onStartSurvey(survey),

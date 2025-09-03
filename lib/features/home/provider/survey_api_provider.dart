@@ -9,3 +9,5 @@ final surveyApiProvider = Provider<SurveyApi>((ref) {
   final dio = ref.watch(dioProvider);
   return SurveyApi(dio);
 });
+
+final surveyRefreshTriggerProvider = StateProvider<int>((ref) => 0);
