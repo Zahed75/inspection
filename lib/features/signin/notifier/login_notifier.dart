@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/storage/storage_service.dart';
 import '../../../utils/constants/token_storage.dart';
+import '../../profile/provider/user_profile_provider.dart';
 import '../api/login_api.dart';
 import '../model/user_login_model.dart';
 import '../provider/login_provider.dart'; // Import flutter_riverpod
@@ -105,20 +106,26 @@ class LoginNotifier extends StateNotifier<LoginState> {
     }
   }
 
+
   void _handleSuccessfulLogin(UserLoginModel user) {
     if (user.user != null && user.user!.isNotEmpty) {
       final userData = user.user!.first;
-      _saveTokens(
-        userData.accessToken,
-        userData.refreshToken,
-        state.rememberMe,
-      );
+      _saveTokens(userData.accessToken, userData.refreshToken, state.rememberMe);
       _saveUserData(userData);
+         // ✅ Tell the app we’re authenticated so /home isn’t blocked
+        _ref.read(isAuthenticatedProvider.notifier).state = true;
 
-      // Debug: Verify token was saved
       _verifyTokenSaved();
     }
   }
+
+  Future<void> logout() async {
+    await TokenStorage.clearToken();
+    clearForm();
+    _ref.read(isAuthenticatedProvider.notifier).state = false;
+    print('User logged out successfully');
+  }
+
 
   // lib/features/signin/notifier/login_notifier.dart - UPDATE THESE METHODS
 
@@ -177,12 +184,6 @@ class LoginNotifier extends StateNotifier<LoginState> {
     return token != null && token.isNotEmpty;
   }
 
-  // Logout method
-  Future<void> logout() async {
-    await TokenStorage.clearToken();
-    clearForm();
-    print('User logged out successfully');
-  }
 
   void clearForm() {
     phoneController.clear();

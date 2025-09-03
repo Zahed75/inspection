@@ -9,11 +9,9 @@ import 'app/router/root_nav_key.dart';
 import 'core/storage/storage_service.dart';
 import 'core/theme/theme.dart';
 import 'core/theme/theme_notifier.dart';
-import 'package:flutter/widgets.dart';
 import 'features/profile/provider/user_profile_provider.dart';
 import 'utils/helpers/update_checker.dart';
 
-// In main.dart, modify the main function
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -28,8 +26,10 @@ void main() async {
     ProviderScope(
       overrides: [
         sharedPrefsProvider.overrideWithValue(sharedPrefs),
-        // Initialize auth state
-        isAuthenticatedProvider.overrideWith((ref) => initialAuthState),
+        // Correct override for StateProvider<bool>
+        isAuthenticatedProvider.overrideWithProvider(
+          StateProvider<bool>((ref) => initialAuthState),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -40,7 +40,7 @@ class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  _MyAppState createState() => _MyAppState();
+  ConsumerState<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends ConsumerState<MyApp> {
@@ -51,18 +51,19 @@ class _MyAppState extends ConsumerState<MyApp> {
   }
 
   Future<void> _checkForUpdates() async {
-    await Future.delayed(
-      const Duration(seconds: 2),
-    ); // Wait for app to initialize
+    await Future.delayed(const Duration(seconds: 2)); // Wait for app to initialize
 
     final updateChecker = ref.read(updateCheckerProvider);
     final updateInfo = await updateChecker.checkForUpdates();
 
     if (updateInfo != null && updateInfo['isUpdateAvailable'] == true) {
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx == null) return;
+
       if (updateInfo['force'] == true) {
         // Forced update
         updateChecker.showForcedUpdateDialog(
-          context: rootNavigatorKey.currentContext!,
+          context: ctx,
           apkUrl: updateInfo['apkUrl'],
           changelog: updateInfo['changelog'],
           versionName: updateInfo['versionName'],
@@ -70,7 +71,7 @@ class _MyAppState extends ConsumerState<MyApp> {
       } else {
         // Optional update
         updateChecker.showUpdateDialog(
-          rootNavigatorKey.currentContext!,
+          ctx,
           updateInfo['isMandatory'],
           updateInfo['apkUrl'],
           updateInfo['changelog'],

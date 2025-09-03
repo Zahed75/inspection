@@ -215,9 +215,7 @@ class _SiteLocationState extends ConsumerState<SiteLocation> {
                       print('✅ Selected site provider updated');
 
                       // ✅ Navigate to home screen
-                      if (widget.isSelectionMode) {
-                        _navigateToHome();
-                      }
+                      _navigateToHome();
                     },
                     child: Container(
                       padding: const EdgeInsets.all(10),

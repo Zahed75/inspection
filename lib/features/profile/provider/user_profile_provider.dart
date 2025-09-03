@@ -3,7 +3,7 @@ import '../api/user_api.dart' as profile_api;
 import '../model/user_info_model.dart' as profile_model;
 
 // Create a separate provider to track authentication state
-final isAuthenticatedProvider = StateProvider<bool>((ref) => true);
+final isAuthenticatedProvider = StateProvider<bool>((ref) => false);
 
 final userProfileNotifierProvider = StateNotifierProvider<
     UserProfileNotifier,
