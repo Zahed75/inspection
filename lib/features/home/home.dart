@@ -120,12 +120,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   @override
+
   Widget build(BuildContext context) {
-    final isLoading = ref.watch(isLoadingProvider);
-    final siteCode = ref.watch(siteCodeProvider);
-    final siteName = ref.watch(siteNameProvider);
+    final selectedSite = ref.watch(selectedSiteProvider);
+    final siteCode = selectedSite?.siteCode ?? 'Select Site';
+    final siteName = selectedSite?.name ?? '';
+
     final surveys = ref.watch(surveysProvider);
     final errorMessage = ref.watch(errorMessageProvider);
+    final isLoading = ref.watch(isLoadingProvider); // ✅ FIXED
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final subtitleColor = isDark ? Colors.white70 : Colors.black54;
     final textColor = isDark ? UColors.white : UColors.dark;
