@@ -1,6 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:inspection/utils/constants/token_storage.dart';
 import 'package:inspection/utils/helpers/app_lifecycle_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app/router/app_router.dart';
@@ -9,17 +10,27 @@ import 'core/storage/storage_service.dart';
 import 'core/theme/theme.dart';
 import 'core/theme/theme_notifier.dart';
 import 'package:flutter/widgets.dart';
+import 'features/profile/provider/user_profile_provider.dart';
 import 'utils/helpers/update_checker.dart';
 
+// In main.dart, modify the main function
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize storage
   final sharedPrefs = await SharedPreferences.getInstance();
 
+  // Check initial auth state
+  final token = await TokenStorage.getToken();
+  final initialAuthState = token != null && token.isNotEmpty;
+
   runApp(
     ProviderScope(
-      overrides: [sharedPrefsProvider.overrideWithValue(sharedPrefs)],
+      overrides: [
+        sharedPrefsProvider.overrideWithValue(sharedPrefs),
+        // Initialize auth state
+        isAuthenticatedProvider.overrideWith((ref) => initialAuthState),
+      ],
       child: const MyApp(),
     ),
   );

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:inspection/features/profile/provider/user_profile_provider.dart';
 
+import '../../app/router/routes.dart';
 import '../../common_ui/widgets/alerts/u_alert.dart';
 import '../../core/storage/storage_service.dart';
 import '../../core/theme/theme_notifier.dart';
@@ -25,9 +26,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Trigger profile fetch when screen loads
+    // Only fetch profile if authenticated
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(userProfileNotifierProvider.notifier).fetchUserProfile();
+      final isAuthenticated = ref.read(isAuthenticatedProvider);
+      if (isAuthenticated) {
+        ref.read(userProfileNotifierProvider.notifier).fetchUserProfile();
+      }
     });
   }
 
@@ -58,53 +62,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _performLogout() async {
     print('=== STARTING LOGOUT PROCESS ===');
 
-    // Step 1: Clear profile state FIRST (before clearing token)
+    // Step 1: Mark user as not authenticated FIRST
+    ref.read(isAuthenticatedProvider.notifier).state = false;
+    print('✅ Authentication state set to false');
+
+    // Step 2: Clear profile state
     ref.read(userProfileNotifierProvider.notifier).resetProfile();
     print('✅ Profile state cleared');
 
-    // Step 2: Clear token using your TokenStorage
+    // Step 3: Clear token using your TokenStorage
     await TokenStorage.clearToken();
     print('✅ Token cleared');
 
-    // Step 3: Clear remember me preference during logout
+    // Step 4: Clear remember me preference during logout
     final storageService = ref.read(storageServiceProvider);
     await storageService.setRememberMe(false);
     print('✅ Remember me preference cleared');
 
-    // Step 4: Verify token is actually cleared
-    final tokenAfterClear = await TokenStorage.getToken();
-    print(
-      '🔍 Token verification after clear: ${tokenAfterClear == null ? "SUCCESS" : "FAILED"}',
-    );
+    // Step 5: Navigate to login screen using GoRouter
+    // This ensures proper navigation stack cleanup
+    _navigateToSignIn();
   }
 
+// In your ProfileScreen, update the _navigateToSignIn method
   void _navigateToSignIn() {
-    // IMMEDIATE navigation - don't use post-frame callback
-    try {
-      // Method 1: Use GoRouter's go method - this clears navigation history
-      GoRouter.of(context).go('/signin');
-      print('✅ Navigation successful using go');
-    } catch (e) {
-      print('❌ Error with go: $e');
+    // Use context.go with a small delay to ensure state is updated
+    Future.delayed(Duration(milliseconds: 100), () {
       try {
-        // Method 2: Use traditional Navigator as fallback
-        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-              (route) => false,
-        );
-        print('✅ Navigation successful using Navigator');
+        context.go('/signin');
+        print('✅ Navigation to login successful');
       } catch (e) {
-        print('❌ All navigation methods failed: $e');
-        // Last resort: Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Logout completed. Please restart the app.'),
-            duration: Duration(seconds: 3),
-          ),
-        );
+        print('❌ Navigation error: $e');
       }
-    }
+    });
   }
+
+
 
   Future<void> _handleLogout() async {
     final shouldLogout = await showDialog<bool>(
@@ -128,7 +121,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (shouldLogout == true) {
       // Close the dialog first
       if (Navigator.canPop(context)) {
-        Navigator.of(context, rootNavigator: true).pop();
+        Navigator.of(context).pop();
       }
 
       // Show loading indicator
@@ -139,11 +132,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       );
 
-      // Perform logout operations
+      // Perform logout operations - this will trigger navigation via router
       await _performLogout();
-
-      // Navigate to sign in screen IMMEDIATELY
-      _navigateToSignIn();
     }
   }
 

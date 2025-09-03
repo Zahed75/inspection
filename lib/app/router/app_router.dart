@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:inspection/app/router/root_nav_key.dart';
 import 'package:inspection/app/router/routes.dart';
+import 'package:inspection/app/router/go_router_refresh.dart'; // Add this import
 
 import '../../features/onboarding/onBoarding.dart';
 import '../../features/profile/profile.dart';
+import '../../features/profile/provider/user_profile_provider.dart';
 import '../../features/question/question.dart';
 import '../../features/result/result.dart';
 import '../../features/signin/signin.dart';
@@ -16,33 +18,29 @@ import '../../navigation_menu.dart';
 import '../screens/splash_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final isAuthenticated = ref.watch(isAuthenticatedProvider);
+
   return GoRouter(
-    initialLocation: '/splash', // Must start with /
+    initialLocation: '/splash',
     navigatorKey: rootNavigatorKey,
     routes: [
       GoRoute(
-        path: '/splash', // Must start with /
+        path: '/splash',
         name: Routes.splash,
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
-        path: '/onboarding', // Must start with /
+        path: '/onboarding',
         name: Routes.onboarding,
         builder: (context, state) => const OnboardingScreen(),
       ),
-      // In your app_router.dart, change the path to match Routes.signIn
       GoRoute(
-        path: '/signin', // Add hyphen to match Routes.signIn
+        path: '/signin',
         name: Routes.signIn,
         builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
-        path: Routes.siteLocation, // '/site-location'
-        name: Routes.siteLocation,
-        builder: (context, state) => const SiteLocation(isSelectionMode: true),
-      ),
-      GoRoute(
-        path: '/otp-verify', // Must start with /
+        path: '/otp-verify',
         name: Routes.otpVerify,
         builder: (context, state) {
           final phoneNumber = state.queryParams['phoneNumber'] ?? '';
@@ -50,17 +48,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return OtpVerifyScreen(phoneNumber: phoneNumber, otp: otp);
         },
       ),
-      // When navigating to home after site selection, make sure the site is preserved
-      // In your GoRouter configuration, add this to the home route:
+
+      // PROTECTED ROUTES - Only accessible when authenticated
       GoRoute(
         path: '/home',
         name: Routes.home,
         pageBuilder: (context, state) {
           return MaterialPage(
             child: const NavigationMenu(),
-            key: state.pageKey, // This preserves state
+            key: state.pageKey,
           );
         },
+      ),
+      GoRoute(
+        path: Routes.siteLocation,
+        name: Routes.siteLocation,
+        builder: (context, state) => const SiteLocation(isSelectionMode: true),
       ),
       GoRoute(
         path: Routes.question,
@@ -73,9 +76,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      // In your app_router.dart, the result route should look like this:
-      // lib/app/router/app_router.dart
-      // In your result route builder
       GoRoute(
         path: '/result',
         name: Routes.result,
@@ -85,13 +85,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ? int.tryParse(responseIdString)
               : null;
 
-          print('🔄 Navigating to result screen with responseId: $responseId');
-
           if (responseId == null || responseId == 0) {
-            // If invalid response ID, go back to home and show error
             WidgetsBinding.instance.addPostFrameCallback((_) {
               context.goNamed(Routes.home);
-              // You could show a snackbar or dialog here if needed
             });
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
@@ -102,10 +98,39 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/profile', // Must start with /
+        path: '/profile',
         name: Routes.profile,
         builder: (context, state) => const ProfileScreen(),
       ),
     ],
+    redirect: (context, state) {
+      // Use location instead of matchedLocation
+      final location = state.location;
+      final isSplash = location == '/splash';
+      final isOnboarding = location == '/onboarding';
+      final isLogin = location == '/signin';
+      final isOtpVerify = location == '/otp-verify';
+      final isSiteLocation = location == '/site-location'; // Add this
+
+      final isPublicRoute = isSplash || isOnboarding || isLogin || isOtpVerify || isSiteLocation; // Include site-location
+
+      // If not authenticated and trying to access protected route, redirect to login
+      if (!isAuthenticated && !isPublicRoute) {
+        return '/signin';
+      }
+
+      // If authenticated and trying to access login/splash, redirect to home
+      if (isAuthenticated && (isLogin || isSplash)) {
+        return '/home';
+      }
+
+      // ✅ Allow authenticated users to access site-location
+      if (isAuthenticated && isSiteLocation) {
+        return null; // Allow access to site-location
+      }
+
+      return null;
+    },
+    refreshListenable: GoRouterRefreshStream(ref.read(isAuthenticatedProvider.notifier).stream),
   );
 });

@@ -1,34 +1,31 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-// ✅ make sure this path matches the file that defines UserApiService
-import '../../../utils/constants/token_storage.dart';
 import '../api/user_api.dart' as profile_api;
-
-// ✅ alias the model import
 import '../model/user_info_model.dart' as profile_model;
 
-final userProfileNotifierProvider =
-StateNotifierProvider<
+// Create a separate provider to track authentication state
+final isAuthenticatedProvider = StateProvider<bool>((ref) => true);
+
+final userProfileNotifierProvider = StateNotifierProvider<
     UserProfileNotifier,
-    AsyncValue<profile_model.GetUserInfoModel>
->((ref) => UserProfileNotifier(ref));
+    AsyncValue<profile_model.GetUserInfoModel>>((ref) {
+  return UserProfileNotifier(ref);
+});
 
 class UserProfileNotifier
     extends StateNotifier<AsyncValue<profile_model.GetUserInfoModel>> {
   final Ref ref;
 
   UserProfileNotifier(this.ref) : super(const AsyncValue.loading()) {
-    fetchUserProfile();
+    // Don't auto-fetch on creation, wait for explicit call
   }
 
-  // In lib/features/profile/provider/user_profile_provider.dart
   Future<void> fetchUserProfile() async {
     print('🔄 Starting to fetch user profile...');
 
-    // Check if token exists before making API call - USE YOUR TokenStorage
-    final hasToken = await TokenStorage.isTokenValid();
-    if (!hasToken) {
-      print('❌ No valid token found, skipping profile fetch');
+    // Check authentication state first
+    final isAuthenticated = ref.read(isAuthenticatedProvider);
+    if (!isAuthenticated) {
+      print('❌ Not authenticated, skipping profile fetch');
       state = const AsyncValue.loading();
       return;
     }
@@ -43,12 +40,12 @@ class UserProfileNotifier
       state = AsyncValue.data(profile);
     } catch (error, stackTrace) {
       print('❌ Error in fetchUserProfile: $error');
-      print('❌ Stack trace: $stackTrace');
 
-      // If it's an authentication error, clear the state
       if (error.toString().contains('401') ||
           error.toString().contains('token') ||
           error.toString().contains('auth')) {
+        // If auth error, mark as not authenticated
+        ref.read(isAuthenticatedProvider.notifier).state = false;
         state = const AsyncValue.loading();
       } else {
         state = AsyncValue.error(error, stackTrace);
@@ -61,7 +58,6 @@ class UserProfileNotifier
     state = const AsyncValue.loading();
   }
 
-  // Add a method to reset the state completely
   void resetProfile() {
     print('🔄 Resetting user profile state');
     state = const AsyncValue.loading();

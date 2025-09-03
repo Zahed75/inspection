@@ -123,7 +123,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Handle navigation on successful login
     if (loginState.user != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(Routes.home);
+        // ✅ Navigate to site-location instead of home
+        context.go(Routes.siteLocation);
+
+        // Clear the user state to prevent infinite navigation
+        ref.read(loginControllerProvider.notifier).state =
+            loginState.copyWith(user: null);
       });
     }
 
