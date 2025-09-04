@@ -287,7 +287,6 @@
 
 
 
-
 // lib/features/result/result.dart
 import 'dart:io';
 import 'dart:typed_data';
@@ -309,7 +308,6 @@ import '../../navigation_menu.dart';
 import 'model/survey_result_model.dart';
 import 'notifier/result_notifier.dart';
 
-// Provider (unchanged)
 final resultNotifierProvider =
 StateNotifierProvider<ResultNotifier, AsyncValue<SurveyResultModel>>((ref) {
   return ResultNotifier(ref);
@@ -351,12 +349,18 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     final timestamp = _safeParseDate(data['timestamp']);
 
     final overall = (data['overall'] as Map?) ?? {};
-    final obtained = (overall['obtainedMarks'] as num?)?.toDouble() ?? 0.0;
-    final total = (overall['totalMarks'] as num?)?.toDouble() ?? 0.0;
-    final percent = total == 0
-        ? 0.0
-        : ((overall['percentage'] as num?)?.toDouble() ??
-        (obtained / total * 100.0));
+
+    // --- Normalize obtained/total and percentage (0–1 or 0–100) ---
+    final rawObt = (overall['obtainedMarks'] as num?)?.toDouble() ?? 0.0;
+    final rawTot = (overall['totalMarks'] as num?)?.toDouble() ?? 0.0;
+    final obt = rawObt <= rawTot ? rawObt : rawTot;
+    final tot = rawTot >= rawObt ? rawTot : rawObt;
+
+    final apiPct = (overall['percentage'] as num?)?.toDouble();
+    final percent =
+    apiPct != null ? (apiPct <= 1.0 ? apiPct * 100.0 : apiPct) : (tot == 0 ? 0.0 : (obt / tot * 100.0));
+    // ---------------------------------------------------------------
+
     final feedback = data['feedback']?.toString() ?? 'No feedback submitted.';
     final categories =
         (data['categories'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -367,8 +371,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     pw.Widget _cell(String text, {bool bold = false, bool alignEnd = false}) {
       return pw.Container(
         padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        alignment:
-        alignEnd ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
+        alignment: alignEnd ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
         child: pw.Text(
           text,
           style: pw.TextStyle(
@@ -450,7 +453,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                         style: pw.TextStyle(
                             fontSize: 12, color: PdfColors.grey600)),
                     pw.SizedBox(height: 2),
-                    pw.Text('${obtained.round()}/${total.round()}',
+                    pw.Text('${obt.round()}/${tot.round()}',
                         style: pw.TextStyle(
                           fontSize: 16,
                           fontWeight: pw.FontWeight.bold,
@@ -468,8 +471,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                         ),
                       ),
                       pw.Container(
-                        width:
-                        120 * ((percent / 100.0).clamp(0.0, 1.0).toDouble()),
+                        width: 120 * ((percent / 100.0).clamp(0.0, 1.0)),
                         height: 8,
                         decoration: pw.BoxDecoration(
                           color: PdfColors.deepPurple,
@@ -498,7 +500,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           pw.SizedBox(height: 18),
           pw.Divider(color: PdfColors.grey300),
 
-          // Categories
+          // Categories with Category + Remarks columns (kept)
           ...categories.expand((cat) {
             final name = (cat['name'] ?? '').toString();
             final List qs = (cat['questions'] as List?) ?? const [];
@@ -531,23 +533,25 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               ),
               pw.SizedBox(height: 6),
               pw.Table(
-                border:
-                pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
                 columnWidths: {
-                  0: const pw.FixedColumnWidth(28),
-                  1: const pw.FlexColumnWidth(3),
-                  2: const pw.FlexColumnWidth(2),
-                  3: const pw.FixedColumnWidth(60),
+                  0: const pw.FixedColumnWidth(28), // No.
+                  1: const pw.FlexColumnWidth(2),   // Category
+                  2: const pw.FlexColumnWidth(3),   // Question
+                  3: const pw.FlexColumnWidth(2),   // Answer
+                  4: const pw.FixedColumnWidth(60), // Marks
+                  5: const pw.FlexColumnWidth(3),   // Remarks
                 },
                 children: [
                   pw.TableRow(
-                    decoration:
-                    const pw.BoxDecoration(color: PdfColors.grey200),
+                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
                     children: [
                       _cell('No.', bold: true),
+                      _cell('Category', bold: true),
                       _cell('Question', bold: true),
                       _cell('Answer', bold: true),
                       _cell('Marks', bold: true, alignEnd: true),
+                      _cell('Remarks', bold: true),
                     ],
                   ),
                   ...List.generate(qs.length, (i) {
@@ -565,15 +569,29 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                           : null,
                       children: [
                         _cell('${i + 1}'),
+                        _cell(name),
                         _cell(qText),
                         _cell(qAns),
-                        _cell(
-                          '${om.toStringAsFixed(0)}/${mm.toStringAsFixed(0)}',
-                          alignEnd: true,
-                        ),
+                        _cell('${om.toStringAsFixed(0)}/${mm.toStringAsFixed(0)}',
+                            alignEnd: true),
+                        _cell(''),
                       ],
                     );
                   }),
+                  // Overall remarks row (kept)
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColor.fromInt(0xFFF3F4F6),
+                    ),
+                    children: [
+                      _cell('-'),
+                      _cell('Remarks', bold: true),
+                      _cell('-'),
+                      _cell('-'),
+                      _cell('-', alignEnd: true),
+                      _cell(feedback),
+                    ],
+                  ),
                 ],
               ),
             ];
@@ -582,7 +600,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           pw.SizedBox(height: 16),
           pw.Divider(color: PdfColors.grey300),
 
-          // Feedback
+          // Feedback section (kept)
           pw.Text(
             'Feedback & Remarks',
             style: pw.TextStyle(
@@ -611,7 +629,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     return pdf.save();
   }
 
-  /// Always returns valid bytes so any future preview doesn’t crash
   Future<Uint8List> _buildMinimalPdfBytes({String? message}) async {
     final doc = pw.Document();
     doc.addPage(
@@ -624,7 +641,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     return await doc.save();
   }
 
-  /// Save bytes to a user-visible location when possible
   Future<String> _savePdfToBestPlace(Uint8List bytes, String filename) async {
     if (Platform.isAndroid) {
       try {
@@ -634,11 +650,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           await file.writeAsBytes(bytes);
           return file.path;
         }
-      } catch (_) {
-        // fall through to app docs
-      }
+      } catch (_) {}
     }
-
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/$filename');
     await file.writeAsBytes(bytes);
@@ -647,7 +660,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
   // ---------------- /PDF helpers ----------------
 
-  // Actions
   Future<void> _downloadPdf(SurveyResultModel result) async {
     setState(() => _exporting = true);
     try {
@@ -655,13 +667,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       final filename =
           'survey_${result.responseId ?? DateTime.now().millisecondsSinceEpoch}.pdf';
       final path = await _savePdfToBestPlace(bytes, filename);
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('PDF saved to:\n$path'),
-          duration: const Duration(seconds: 6),
-        ),
+        SnackBar(content: Text('PDF saved to:\n$path'), duration: const Duration(seconds: 6)),
       );
     } catch (e) {
       if (!mounted) return;
@@ -673,8 +681,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     }
   }
 
-
-  // ---------------- your existing data processors ----------------
+  // ---------------- data processors ----------------
 
   Map<String, dynamic> _processSurveyData(SurveyResultModel result) {
     final categories = <Map<String, dynamic>>[];
@@ -700,7 +707,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       'overall': {
         'obtainedMarks': result.obtainedScore?.toDouble() ?? 0,
         'totalMarks': result.totalScore?.toDouble() ?? 0,
-        'percentage': (result.percentage ?? 0.0) * 100.0,
+        // keep API value; we normalize later (0–1 vs 0–100)
+        'percentage': (result.percentage ?? 0.0),
       },
       'categories': categories,
       'siteCode': result.siteCode ?? 'N/A',
@@ -774,7 +782,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           },
         ),
         actions: [
-
           IconButton(
             tooltip: 'Download PDF',
             onPressed: _exporting
@@ -788,10 +795,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     content: Text('Please wait, loading result...'),
                   ),
                 ),
-                error: (e, _) =>
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Cannot export: $e')),
-                    ),
+                error: (e, _) => ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Cannot export: $e')),
+                ),
               );
             },
             icon: _exporting
@@ -835,23 +841,29 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
         data: (result) {
           final processedData = _processSurveyData(result);
 
-          final totalScore =
-              (processedData['overall']?['obtainedMarks'] as num?)
-                  ?.toDouble() ??
-                  0;
-          final maxScore =
+          // Normalize here too so header ring & label are always right
+          final rawObt =
+              (processedData['overall']?['obtainedMarks'] as num?)?.toDouble() ??
+                  0.0;
+          final rawTot =
               (processedData['overall']?['totalMarks'] as num?)?.toDouble() ??
-                  0;
-          final percent = maxScore == 0 ? 0.0 : totalScore / maxScore;
-          final resultPercentLabel = '${(percent * 100).toStringAsFixed(1)}%';
+                  0.0;
+          final obtainedForCalc = rawObt <= rawTot ? rawObt : rawTot;
+          final totalForCalc = rawTot >= rawObt ? rawTot : rawObt;
+
+          final percent =
+          totalForCalc == 0 ? 0.0 : obtainedForCalc / totalForCalc;
+          final resultPercentLabel =
+              '${(percent * 100).toStringAsFixed(1)}%';
 
           final String siteCode =
           (processedData['siteCode'] ?? 'N/A').toString();
           final String? siteName = processedData['siteName']?.toString();
           final DateTime timestamp =
           _safeParseDate(processedData['timestamp']);
-          final String feedback = processedData['feedback']?.toString() ??
-              'No feedback submitted.';
+          final String feedback =
+              processedData['feedback']?.toString() ??
+                  'No feedback submitted.';
 
           final List<Map<String, dynamic>> categories =
               (processedData['categories'] as List?)
@@ -866,9 +878,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   siteCode: siteCode,
                   siteName: siteName,
                   timestamp: timestamp,
-                  totalScore: totalScore.round(),
-                  maxScore: maxScore.round(),
-                  percent: percent,
+                  // pass normalized order so header shows e.g. 30/50
+                  totalScore: obtainedForCalc.round(),
+                  maxScore: totalForCalc.round(),
+                  percent: percent, // 0..1
                   percentLabel: resultPercentLabel,
                 ),
                 Container(

@@ -17,7 +17,7 @@ import 'model/survey_list_model.dart';
 
 // Define Riverpod providers for state management
 final isLoadingProvider = StateProvider<bool>((ref) => true);
-final surveysProvider = StateProvider<List<SurveyData>>((ref) => []);
+final surveysProvider = StateProvider<List<Data>>((ref) => []);
 final siteCodeProvider = StateProvider<String>((ref) => 'Loading...');
 final siteNameProvider = StateProvider<String>((ref) => '');
 final errorMessageProvider = StateProvider<String?>((ref) => null);
@@ -109,7 +109,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     context.push(Routes.siteLocation, extra: {'isSelectionMode': true});
   }
 
-  void _onStartSurvey(SurveyData survey) {
+  void _onStartSurvey(Data survey) {
     final selectedSite = ref.read(selectedSiteProvider);
     final siteCode = selectedSite?.siteCode ?? '';
 

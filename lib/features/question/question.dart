@@ -806,15 +806,17 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
     final theme = Theme.of(context);
 
     // Group questions by category
+    // Group questions by category_name (fallback to category, then 'General')
     final Map<String, List<Map<String, dynamic>>> categorizedQuestions = {};
 
     for (var question in questions) {
-      final category = question['category'] ?? 'General';
-      if (!categorizedQuestions.containsKey(category)) {
-        categorizedQuestions[category] = [];
-      }
+      final category = (question['category_name'] ??
+          question['category'] ??
+          'General') as String;
+      categorizedQuestions.putIfAbsent(category, () => []);
       categorizedQuestions[category]!.add(question);
     }
+
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
