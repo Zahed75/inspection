@@ -285,8 +285,6 @@
 
 
 
-
-
 // lib/features/result/result.dart
 import 'dart:io';
 import 'dart:typed_data';
@@ -315,6 +313,7 @@ StateNotifierProvider<ResultNotifier, AsyncValue<SurveyResultModel>>((ref) {
 
 class ResultScreen extends ConsumerStatefulWidget {
   const ResultScreen({super.key, required this.responseId});
+
   final int responseId;
 
   @override
@@ -350,16 +349,17 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
     final overall = (data['overall'] as Map?) ?? {};
 
-    // --- Normalize obtained/total and percentage (0–1 or 0–100) ---
+    // --- Normalize obtained/total and compute percentage from scores ---
     final rawObt = (overall['obtainedMarks'] as num?)?.toDouble() ?? 0.0;
     final rawTot = (overall['totalMarks'] as num?)?.toDouble() ?? 0.0;
+
+    // keep display order correct if server sends swapped values
     final obt = rawObt <= rawTot ? rawObt : rawTot;
     final tot = rawTot >= rawObt ? rawTot : rawObt;
 
-    final apiPct = (overall['percentage'] as num?)?.toDouble();
-    final percent =
-    apiPct != null ? (apiPct <= 1.0 ? apiPct * 100.0 : apiPct) : (tot == 0 ? 0.0 : (obt / tot * 100.0));
-    // ---------------------------------------------------------------
+    // Always compute % from scores so it matches screen
+    final percent = tot == 0 ? 0.0 : (obt / tot * 100.0);
+    // ------------------------------------------------------------------
 
     final feedback = data['feedback']?.toString() ?? 'No feedback submitted.';
     final categories =
@@ -371,7 +371,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     pw.Widget _cell(String text, {bool bold = false, bool alignEnd = false}) {
       return pw.Container(
         padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        alignment: alignEnd ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
+        alignment:
+        alignEnd ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
         child: pw.Text(
           text,
           style: pw.TextStyle(
@@ -415,28 +416,32 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   if (siteName != null && siteName.isNotEmpty)
                     pw.Text(
                       siteName,
-                      style:
-                      pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
-                    ),
-                  pw.SizedBox(height: 10),
-                  pw.Row(children: [
-                    pw.Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const pw.BoxDecoration(
-                        color: PdfColors.grey500,
-                        shape: pw.BoxShape.circle,
-                      ),
-                    ),
-                    pw.SizedBox(width: 6),
-                    pw.Text(
-                      dateStr,
                       style: pw.TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         color: PdfColors.grey600,
                       ),
                     ),
-                  ]),
+                  pw.SizedBox(height: 10),
+                  pw.Row(
+                    children: [
+                      pw.Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const pw.BoxDecoration(
+                          color: PdfColors.grey500,
+                          shape: pw.BoxShape.circle,
+                        ),
+                      ),
+                      pw.SizedBox(width: 6),
+                      pw.Text(
+                        dateStr,
+                        style: pw.TextStyle(
+                          fontSize: 11,
+                          color: PdfColors.grey600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               // Score card
@@ -449,36 +454,44 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
-                    pw.Text('Score',
-                        style: pw.TextStyle(
-                            fontSize: 12, color: PdfColors.grey600)),
+                    pw.Text(
+                      'Score',
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
                     pw.SizedBox(height: 2),
-                    pw.Text('${obt.round()}/${tot.round()}',
-                        style: pw.TextStyle(
-                          fontSize: 16,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.grey800,
-                        )),
+                    pw.Text(
+                      '${obt.round()}/${tot.round()}',
+                      style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.grey800,
+                      ),
+                    ),
                     pw.SizedBox(height: 8),
                     // Progress bar
-                    pw.Stack(children: [
-                      pw.Container(
-                        width: 120,
-                        height: 8,
-                        decoration: pw.BoxDecoration(
-                          color: PdfColors.grey200,
-                          borderRadius: pw.BorderRadius.circular(10),
+                    pw.Stack(
+                      children: [
+                        pw.Container(
+                          width: 120,
+                          height: 8,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.grey200,
+                            borderRadius: pw.BorderRadius.circular(10),
+                          ),
                         ),
-                      ),
-                      pw.Container(
-                        width: 120 * ((percent / 100.0).clamp(0.0, 1.0)),
-                        height: 8,
-                        decoration: pw.BoxDecoration(
-                          color: PdfColors.deepPurple,
-                          borderRadius: pw.BorderRadius.circular(10),
+                        pw.Container(
+                          width: 120 * ((percent / 100.0).clamp(0.0, 1.0)),
+                          height: 8,
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.deepPurple,
+                            borderRadius: pw.BorderRadius.circular(10),
+                          ),
                         ),
-                      ),
-                    ]),
+                      ],
+                    ),
                     pw.SizedBox(height: 4),
                     pw.Align(
                       alignment: pw.Alignment.centerRight,
@@ -533,18 +546,20 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               ),
               pw.SizedBox(height: 6),
               pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+                border:
+                pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
                 columnWidths: {
                   0: const pw.FixedColumnWidth(28), // No.
-                  1: const pw.FlexColumnWidth(2),   // Category
-                  2: const pw.FlexColumnWidth(3),   // Question
-                  3: const pw.FlexColumnWidth(2),   // Answer
+                  1: const pw.FlexColumnWidth(2), // Category
+                  2: const pw.FlexColumnWidth(3), // Question
+                  3: const pw.FlexColumnWidth(2), // Answer
                   4: const pw.FixedColumnWidth(60), // Marks
-                  5: const pw.FlexColumnWidth(3),   // Remarks
+                  5: const pw.FlexColumnWidth(3), // Remarks
                 },
                 children: [
                   pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                    decoration:
+                    const pw.BoxDecoration(color: PdfColors.grey200),
                     children: [
                       _cell('No.', bold: true),
                       _cell('Category', bold: true),
@@ -561,6 +576,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     final om = _qObtainedMarks(q);
                     final mm = _qMaxMarks(q);
 
+                    // Use the question's category_name/categoryName when available
+                    final qCategory =
+                    _qCategory(q).isNotEmpty ? _qCategory(q) : name;
+
                     return pw.TableRow(
                       decoration: i.isEven
                           ? const pw.BoxDecoration(
@@ -569,12 +588,14 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                           : null,
                       children: [
                         _cell('${i + 1}'),
-                        _cell(name),
+                        _cell(qCategory), // <-- Category column fixed here
                         _cell(qText),
                         _cell(qAns),
-                        _cell('${om.toStringAsFixed(0)}/${mm.toStringAsFixed(0)}',
-                            alignEnd: true),
-                        _cell(''),
+                        _cell(
+                          '${om.toStringAsFixed(0)}/${mm.toStringAsFixed(0)}',
+                          alignEnd: true,
+                        ),
+                        _cell(''), // Remarks column left empty as before
                       ],
                     );
                   }),
@@ -633,9 +654,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     final doc = pw.Document();
     doc.addPage(
       pw.Page(
-        build: (_) => pw.Center(
-          child: pw.Text(message ?? 'PDF could not be generated.'),
-        ),
+        build: (_) =>
+            pw.Center(child: pw.Text(message ?? 'PDF could not be generated.')),
       ),
     );
     return await doc.save();
@@ -669,13 +689,16 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       final path = await _savePdfToBestPlace(bytes, filename);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('PDF saved to:\n$path'), duration: const Duration(seconds: 6)),
+        SnackBar(
+          content: Text('PDF saved to:\n$path'),
+          duration: const Duration(seconds: 6),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save PDF: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save PDF: $e')));
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -707,7 +730,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       'overall': {
         'obtainedMarks': result.obtainedScore?.toDouble() ?? 0,
         'totalMarks': result.totalScore?.toDouble() ?? 0,
-        // keep API value; we normalize later (0–1 vs 0–100)
+        // keep API percentage out of math; we compute from scores
         'percentage': (result.percentage ?? 0.0),
       },
       'categories': categories,
@@ -746,6 +769,31 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     if (q is SubmittedQuestions) return (q.maxMarks ?? 0).toDouble();
     if (q is Map) return (q['maxMarks'] as num?)?.toDouble() ?? 0;
     return 0;
+  }
+
+  /// Returns the question's category if present (supports both camelCase and snake_case),
+  /// otherwise returns an empty string.
+  static String _qCategory(dynamic q) {
+    // If it's a model, try reading category fields (using dynamic to avoid hard dependency)
+    try {
+      if (q is SubmittedQuestions) {
+        final String? c1 = (q as dynamic).categoryName as String?;
+        final String? c2 = (q as dynamic).category as String?;
+        if (c1 != null && c1.isNotEmpty) return c1;
+        if (c2 != null && c2.isNotEmpty) return c2;
+      }
+    } catch (_) {
+      // fall through to map handling
+    }
+
+    // If it's a map, try both styles
+    if (q is Map) {
+      final v = q['categoryName'] ?? q['category_name'] ?? q['category'];
+      if (v != null) return v.toString();
+    }
+
+    // Fallback
+    return '';
   }
 
   static DateTime _safeParseDate(dynamic v) {
@@ -843,7 +891,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
           // Normalize here too so header ring & label are always right
           final rawObt =
-              (processedData['overall']?['obtainedMarks'] as num?)?.toDouble() ??
+              (processedData['overall']?['obtainedMarks'] as num?)
+                  ?.toDouble() ??
                   0.0;
           final rawTot =
               (processedData['overall']?['totalMarks'] as num?)?.toDouble() ??
@@ -853,17 +902,15 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
           final percent =
           totalForCalc == 0 ? 0.0 : obtainedForCalc / totalForCalc;
-          final resultPercentLabel =
-              '${(percent * 100).toStringAsFixed(1)}%';
+          final resultPercentLabel = '${(percent * 100).toStringAsFixed(1)}%';
 
           final String siteCode =
           (processedData['siteCode'] ?? 'N/A').toString();
           final String? siteName = processedData['siteName']?.toString();
           final DateTime timestamp =
           _safeParseDate(processedData['timestamp']);
-          final String feedback =
-              processedData['feedback']?.toString() ??
-                  'No feedback submitted.';
+          final String feedback = processedData['feedback']?.toString() ??
+              'No feedback submitted.';
 
           final List<Map<String, dynamic>> categories =
               (processedData['categories'] as List?)
