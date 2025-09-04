@@ -4,7 +4,7 @@ description: "A new Flutter project."
 publish_to: 'none'
 
 
-version: 1.0.0+10
+version: 1.0.0+11
 
 environment:
   sdk: ^3.9.0
@@ -56,6 +56,8 @@ dependencies:
   jwt_decoder: ^2.0.1
   app_installer_plus: ^1.0.0
   flutter_localization: ^0.3.3
+  pdf: ^3.11.3
+  printing: ^5.14.2
 
 
 

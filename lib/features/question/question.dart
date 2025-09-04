@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
@@ -962,7 +961,7 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
         ),
       ),
       floatingActionButton: Container(
-        margin: const EdgeInsets.only(bottom: 16),
+        margin: const EdgeInsets.only(bottom: 1),
         child: FloatingActionButton.extended(
           onPressed: isSubmitting ? null : _submitSurvey,
           backgroundColor: theme.colorScheme.primary,
@@ -980,3 +979,4 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
     );
   }
 }
+

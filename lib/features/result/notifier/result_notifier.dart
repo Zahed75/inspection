@@ -1,7 +1,6 @@
 // lib/features/result/notifier/result_notifier.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../api/result_api.dart';
 import '../model/survey_result_model.dart';
 
