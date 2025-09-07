@@ -40,15 +40,28 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
   bool isSubmitting = false;
   final ScrollController _scrollController = ScrollController();
 
+  // Map questionId -> serial number (1-based) for validation messages
+  late final Map<int, int> _serialById;
+
   @override
   void initState() {
     super.initState();
+
+    // Build the serial map once from incoming questions order
+    final List questions = (widget.surveyData['questions'] as List?) ?? [];
+    _serialById = {
+      for (var i = 0; i < questions.length; i++)
+        (questions[i]['id'] as int): i + 1,
+    };
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(answersProvider.notifier).state = {};
       ref.read(locationProvider.notifier).state = null;
       _getLocation();
     });
   }
+
+  int _serialOf(int qid) => _serialById[qid] ?? qid;
 
   @override
   void dispose() {
@@ -146,10 +159,10 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
       final List<String> validationErrors = [];
 
       // Process regular questions (text, choice, linear, remarks, yesno, multiple_scoring)
-      for (var question in widget.surveyData['questions']) {
-        final questionId = question['id'];
-        final questionType = question['type'];
-        final isRequired = question['is_required'] ?? false;
+      for (var question in widget.surveyData['questions'] as List) {
+        final questionId = question['id'] as int;
+        final questionType = question['type'] as String;
+        final isRequired = (question['is_required'] ?? false) as bool;
         final answer = answers[questionId];
 
         // Skip image and location questions for now (handled separately)
@@ -159,32 +172,25 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
 
         // Validate required questions
         if (isRequired && answer == null) {
-          validationErrors.add('${question['text']} is required');
+          validationErrors.add(
+            'Question #${_serialOf(questionId)} is required',
+          );
           continue;
         }
 
         // Validate linear range
         if (questionType == 'linear' && answer != null) {
-          final minValue = question['min_value'] ?? 0;
-          final maxValue = question['max_value'] ?? 100;
+          final minValue = (question['min_value'] ?? 0) as int;
+          final maxValue = (question['max_value'] ?? 100) as int;
           if (answer < minValue || answer > maxValue) {
             validationErrors.add(
-              '${question['text']}: Value must be between $minValue and $maxValue',
+              'Question #${_serialOf(questionId)}: Value must be between $minValue and $maxValue',
             );
             continue;
           }
         }
 
-        // Validate text length
-        if ((questionType == 'text' || questionType == 'remarks') &&
-            answer is String) {
-          if (answer.length < 10) {
-            validationErrors.add(
-              '${question['text']}: Please provide more details (min 10 characters)',
-            );
-            continue;
-          }
-        }
+        // REMOVE min 10 char validation for text/remarks (per instruction)
 
         if (answer != null) {
           Map<String, dynamic> response = {'question': questionId};
@@ -211,17 +217,19 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
       }
 
       // Process image questions
-      for (var question in widget.surveyData['questions']) {
-        final questionId = question['id'];
-        final questionType = question['type'];
-        final isRequired = question['is_required'] ?? false;
+      for (var question in widget.surveyData['questions'] as List) {
+        final questionId = question['id'] as int;
+        final questionType = question['type'] as String;
+        final isRequired = (question['is_required'] ?? false) as bool;
 
         if (questionType == 'image') {
           final imagePath = images[questionId];
 
           // Validate required image
           if (isRequired && imagePath == null) {
-            validationErrors.add('${question['text']} is required');
+            validationErrors.add(
+              'Question #${_serialOf(questionId)} is required',
+            );
             continue;
           }
 
@@ -234,17 +242,19 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
       }
 
       // Process location questions
-      for (var question in widget.surveyData['questions']) {
-        final questionId = question['id'];
-        final questionType = question['type'];
-        final isRequired = question['is_required'] ?? false;
+      for (var question in widget.surveyData['questions'] as List) {
+        final questionId = question['id'] as int;
+        final questionType = question['type'] as String;
+        final isRequired = (question['is_required'] ?? false) as bool;
 
         if (questionType == 'location') {
           final location = detectedLocations[questionId];
 
           // Validate required location
           if (isRequired && location == null) {
-            validationErrors.add('${question['text']} is required');
+            validationErrors.add(
+              'Question #${_serialOf(questionId)} is required',
+            );
             continue;
           }
 
@@ -263,6 +273,7 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
         throw Exception(
           'Please complete all required fields:\n${validationErrors.join('\n')}',
         );
+        // (kept alert UX the same)
       }
 
       // Ensure outlet_code is not empty
@@ -279,8 +290,7 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
         questionResponses: questionResponses,
         imagePaths: imageFiles,
       );
-      print('✅ Submission successful! Response: ${response.toJson()}');
-      // Handle successful submission
+
       _navigateToResultScreen(response);
     } catch (e) {
       // Handle error with user-friendly message
@@ -300,7 +310,6 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
 
   void _navigateToResultScreen(SurveySubmitResponseModel response) {
     if (response.responseId == null || response.responseId == 0) {
-      print('❌ Invalid responseId: ${response.responseId}');
       UAlert.show(
         title: "Submission Error",
         message: "Failed to get valid response ID from server",
@@ -310,10 +319,6 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
       );
       return;
     }
-
-    print(
-      '✅ Navigating to result screen with responseId: ${response.responseId}',
-    );
 
     // Store the latest response ID
     ref.read(latestResponseIdProvider.notifier).state = response.responseId;
@@ -460,7 +465,7 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
                                 color: Colors.red.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: Text(
+                              child: const Text(
                                 "Required",
                                 style: TextStyle(
                                   color: Colors.red,
@@ -482,7 +487,7 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
                               ),
                               child: Text(
                                 "$marks marks",
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.green,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
@@ -545,10 +550,9 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: FilledButton.tonal(
-              onPressed: () =>
-                  ref.read(answersProvider.notifier).update((state) {
-                    return {...state, id: choices[0]['id']};
-                  }),
+              onPressed: () => ref
+                  .read(answersProvider.notifier)
+                  .update((state) => {...state, id: choices[0]['id']}),
               style: FilledButton.styleFrom(
                 backgroundColor: currentAnswer == choices[0]['id']
                     ? Colors.green
@@ -567,10 +571,9 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: FilledButton.tonal(
-              onPressed: () =>
-                  ref.read(answersProvider.notifier).update((state) {
-                    return {...state, id: choices[1]['id']};
-                  }),
+              onPressed: () => ref
+                  .read(answersProvider.notifier)
+                  .update((state) => {...state, id: choices[1]['id']}),
               style: FilledButton.styleFrom(
                 backgroundColor: currentAnswer == choices[1]['id']
                     ? Colors.red
@@ -702,7 +705,6 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        // Show detected location if available
         if (isLocationDetected)
           Container(
             margin: const EdgeInsets.only(top: 8),
@@ -755,8 +757,8 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
 
   Widget _buildLinearInput(Map<String, dynamic> question, int id) {
     final theme = Theme.of(context);
-    final minValue = question['min_value'] ?? 0;
-    final maxValue = question['max_value'] ?? 10;
+    final minValue = (question['min_value'] ?? 0) as int;
+    final maxValue = (question['max_value'] ?? 10) as int;
     final currentValue = ref.watch(answersProvider)[id] ?? minValue;
 
     return Column(
@@ -764,7 +766,7 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
         Slider(
           min: minValue.toDouble(),
           max: maxValue.toDouble(),
-          value: currentValue.toDouble(),
+          value: (currentValue as num).toDouble(),
           divisions: maxValue - minValue,
           onChanged: (val) {
             ref.read(answersProvider.notifier).update((state) {
@@ -805,18 +807,15 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
     final expandedCategories = ref.watch(expandedCategoriesProvider);
     final theme = Theme.of(context);
 
-    // Group questions by category
     // Group questions by category_name (fallback to category, then 'General')
     final Map<String, List<Map<String, dynamic>>> categorizedQuestions = {};
-
     for (var question in questions) {
-      final category = (question['category_name'] ??
-          question['category'] ??
-          'General') as String;
+      final category =
+          (question['category_name'] ?? question['category'] ?? 'General')
+              as String;
       categorizedQuestions.putIfAbsent(category, () => []);
       categorizedQuestions[category]!.add(question);
     }
-
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -830,6 +829,7 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
               {GoRouter.of(context).go(Routes.home)},
           },
         ),
+        // AppBar: show Survey Title + Site Code (no other changes)
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -869,59 +869,8 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Survey info card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.surveyData['title'] ?? 'Survey',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: theme.textTheme.bodyMedium?.color,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (widget.surveyData['description'] != null)
-                    Text(
-                      widget.surveyData['description']!,
-                      style: TextStyle(
-                        color: theme.textTheme.bodySmall?.color,
-                        fontSize: 14,
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _buildInfoChip(
-                        Iconsax.document_text,
-                        '${questions.length} Questions',
-                      ),
-                      const SizedBox(width: 8),
-                      _buildInfoChip(
-                        Iconsax.clock,
-                        '${questions.length * 2} min approx',
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
+            // REMOVED the top survey info card as requested
+            // (no total questions / time / title card above categories)
 
             // Questions list
             Expanded(
@@ -981,4 +930,3 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
     );
   }
 }
-
