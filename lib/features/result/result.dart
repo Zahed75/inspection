@@ -190,30 +190,95 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       SurveyResultModel result,
       PdfPageFormat pageFormat,
       ) async {
-    // screen data (kept)
+    // Reuse processed data for scores/time, plus our best title
     final data = _processSurveyData(result);
 
-    // Build proper category groups for PDF
+    // ---- robust category extractor: NO direct typed getters ----
+    String _extractCategory(dynamic q) {
+      // 1) Try dynamic properties on model instances
+      try {
+        final d = q as dynamic;
+        final candidates = [
+          d.categoryName,
+          d.category,
+          d.category_name,
+          d.category_title,
+        ];
+        for (final c in candidates) {
+          if (c is String && c.trim().isNotEmpty) return c.trim();
+        }
+      } catch (_) {}
+
+      // 2) If it's a Map, probe common keys
+      if (q is Map) {
+        for (final k in const [
+          'category_name',
+          'categoryName',
+          'category',
+          'category_title',
+        ]) {
+          final v = q[k];
+          if (v != null && v.toString().trim().isNotEmpty) {
+            return v.toString().trim();
+          }
+        }
+      }
+
+      // 3) Heuristics from question text (e.g. "[Safety] Wear PPE")
+      final txt = _qText(q);
+      final mBracket = RegExp(r'^\s*\[([^\]]+)\]\s*').firstMatch(txt);
+      if (mBracket != null) {
+        final cat = mBracket.group(1)?.trim();
+        if (cat != null && cat.isNotEmpty) return cat;
+      }
+      final mParen = RegExp(r'^\s*\(([^)]+)\)\s*').firstMatch(txt);
+      if (mParen != null) {
+        final cat = mParen.group(1)?.trim();
+        if (cat != null && cat.isNotEmpty) return cat;
+      }
+      final mDelim =
+      RegExp(r'^\s*([^\-\:\•\|]{3,40}?)\s*[\:\-\•\|]\s+').firstMatch(txt);
+      if (mDelim != null) {
+        final raw = mDelim.group(1)?.trim() ?? '';
+        final valid = raw.isNotEmpty &&
+            raw.length <= 30 &&
+            !raw.contains('?') &&
+            RegExp(r'[A-Za-z]').hasMatch(raw);
+        if (valid) return raw;
+      }
+
+      // 4) Fallback
+      return 'General';
+    }
+
+    // Build categories from submitted questions
     final allQs = (result.submittedQuestions ?? []).toList();
     final nonRemarks = allQs.where((q) => _qType(q) != 'remarks').toList();
     final remarksMap = _remarksByCategory(allQs);
 
-    // Group non-remarks by category (fallback to 'General')
     final Map<String, List> byCategory = {};
     for (final q in nonRemarks) {
-      final cat = _qCategory(q).isNotEmpty ? _qCategory(q) : 'General';
+      final cat = _extractCategory(q);
       byCategory.putIfAbsent(cat, () => []).add(q);
     }
 
-    final siteCode = (data['siteCode'] ?? 'N/A').toString();
+    // Header data
+    final siteCode = (data['siteCode'] ?? result.siteCode ?? 'N/A').toString();
+    final outlet = (result.outletCode ?? '').trim(); // show if provided
+    final timestamp = _safeParseDate(data['timestamp']);
+    final dateStr = DateFormat('MMMM d, y • h:mm a').format(timestamp);
+
+    // Survey title best effort
     final surveyTitle = (() {
+      if ((result.surveyTitle ?? '').trim().isNotEmpty) {
+        return result.surveyTitle!.trim();
+      }
       final fromData = (data['siteName']?.toString().trim() ?? '');
-      if (fromData.isNotEmpty) return fromData;      // uses title prepared in _processSurveyData
-      return _surveyTitleFrom(result);                // fallback to model-based discovery
+      if (fromData.isNotEmpty) return fromData;
+      return _surveyTitleFrom(result);
     })();
 
-    final timestamp = _safeParseDate(data['timestamp']);
-
+    // Overall score/percentage
     final overall = (data['overall'] as Map?) ?? {};
     final rawObt = (overall['obtainedMarks'] as num?)?.toDouble() ?? 0.0;
     final rawTot = (overall['totalMarks'] as num?)?.toDouble() ?? 0.0;
@@ -225,7 +290,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
         data['feedback']?.toString() ?? 'No feedback submitted.';
 
     final pdf = pw.Document();
-    final dateStr = DateFormat('MMMM d, y • h:mm a').format(timestamp);
 
     pw.Widget _chip(String label) {
       return pw.Container(
@@ -302,7 +366,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
         pageFormat: pageFormat,
         margin: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 28),
         build: (_) => [
-          // ===== Header (kept eye-catchy, no logic change) =====
+          // ===== Header (with outlet chip if available) =====
           pw.Container(
             width: double.infinity,
             padding: const pw.EdgeInsets.all(16),
@@ -323,11 +387,12 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   ),
                 ),
                 pw.SizedBox(height: 8),
-                pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                pw.Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
                     _chip('Site: $siteCode'),
-                    pw.SizedBox(width: 8),
+                    if (outlet.isNotEmpty) _chip('Outlet: $outlet'),
                     _chip(dateStr),
                   ],
                 ),
@@ -342,7 +407,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                       ),
                     ),
                     pw.SizedBox(width: 12),
-                    // Show total percentage as plain number
                     pw.Expanded(
                       child: _metricCard(
                         title: 'Total Percentage',
@@ -372,7 +436,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             final catPercent = catMax == 0 ? 0.0 : (catObt / catMax * 100.0);
 
             return [
-              // Category header: name + plain percentage (no bar)
+              // Category header: name + numeric percentage
               pw.Container(
                 margin: const pw.EdgeInsets.only(bottom: 6),
                 child: pw.Row(
@@ -397,7 +461,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                 ),
               ),
 
-              // Table with Remarks column restored
+              // Table with Remarks column
               pw.Table(
                 border: pw.TableBorder.all(
                   color: PdfColors.grey300,
@@ -409,7 +473,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   2: const pw.FlexColumnWidth(3),    // Question
                   3: const pw.FlexColumnWidth(2),    // Answer
                   4: const pw.FixedColumnWidth(60),  // Marks
-                  5: const pw.FlexColumnWidth(3),    // Remarks (per-category)
+                  5: const pw.FlexColumnWidth(3),    // Remarks
                 },
                 children: [
                   pw.TableRow(
@@ -429,11 +493,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     final qAns = _qAnswer(q);
                     final om = _qObtainedMarks(q);
                     final mm = _qMaxMarks(q);
-                    // Ensure category name per question is correct
-                    final rowCat =
-                    _qCategory(q).isNotEmpty ? _qCategory(q) : catName;
-                    // Use category-remarks map; empty if none
-                    final catRemark = remarksMap[catName] ?? '';
+
+                    final rowCat = _extractCategory(q);          // <- safe now
+                    final catRemark = remarksMap[catName] ?? ''; // per-category
 
                     return pw.TableRow(
                       decoration: i.isEven
@@ -460,7 +522,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             ];
           }).toList(),
 
-          // ===== Feedback (kept) =====
           if (overallFeedback.trim().isNotEmpty) ...[
             pw.SizedBox(height: 6),
             pw.Container(
@@ -507,6 +568,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
     return pdf.save();
   }
+
+
+
 
 
 
