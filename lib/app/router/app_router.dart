@@ -53,7 +53,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/home',
         name: Routes.home,
-        builder: (context, state) => const NavigationMenu(), // Changed from pageBuilder to builder
+        builder: (context, state) =>
+            const NavigationMenu(), // Changed from pageBuilder to builder
       ),
       GoRoute(
         path: Routes.siteLocation,
@@ -103,27 +104,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
     redirect: (context, state) {
-      final location = state.location;
-      final isSplash = location == '/splash';
-      final isOnboarding = location == '/onboarding';
-      final isLogin = location == '/signin';
-      final isOtpVerify = location == '/otp-verify';
-      final isSiteLocation = location == '/site-location';
+      // subloc drops the query string so /otp-verify?x=y -> /otp-verify
+      final subloc = state.subloc;
 
-      final isPublicRoute = isSplash || isOnboarding || isLogin || isOtpVerify || isSiteLocation;
+      final isSplash = subloc == '/splash';
+      final isOnboarding = subloc == '/onboarding';
+      final isLogin = subloc == '/signin';
+      final isOtpVerify = subloc.startsWith('/otp-verify'); // <- important
+      final isSiteLocation = subloc == '/site-location';
 
-      // If not authenticated and trying to access protected route, redirect to login
-      if (!isAuthenticated && !isPublicRoute) {
-        return '/signin';
-      }
+      final isPublicRoute =
+          isSplash || isOnboarding || isLogin || isOtpVerify || isSiteLocation;
 
-      // If authenticated and trying to access login/splash, redirect to home
-      if (isAuthenticated && (isLogin || isSplash)) {
-        return '/home';
-      }
-
+      if (!isAuthenticated && !isPublicRoute) return '/signin';
+      if (isAuthenticated && (isLogin || isSplash)) return '/home';
       return null;
     },
-    refreshListenable: GoRouterRefreshStream(ref.read(isAuthenticatedProvider.notifier).stream),
+
+    refreshListenable: GoRouterRefreshStream(
+      ref.read(isAuthenticatedProvider.notifier).stream,
+    ),
   );
 });

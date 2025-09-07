@@ -69,46 +69,6 @@ class SurveySubmitResponseModel {
   }
 }
 
-// class SubmittedQuestions {
-//   int? questionId;
-//   String? questionText;
-//   String? type;
-//   int? maxMarks;
-//   double? obtainedMarks;
-//   String? answer;
-//
-//   SubmittedQuestions({
-//     this.questionId,
-//     this.questionText,
-//     this.type,
-//     this.maxMarks,
-//     this.obtainedMarks,
-//     this.answer,
-//   });
-//
-//   factory SubmittedQuestions.fromJson(Map<String, dynamic> json) {
-//     return SubmittedQuestions(
-//       questionId: json['question_id'],
-//       questionText: json['question_text'],
-//       type: json['type'],
-//       maxMarks: json['max_marks'],
-//       obtainedMarks: json['obtained_marks']?.toDouble(),
-//       answer: json['answer'],
-//     );
-//   }
-//
-//   Map<String, dynamic> toJson() {
-//     final Map<String, dynamic> data = <String, dynamic>{};
-//     data['question_id'] = questionId;
-//     data['question_text'] = questionText;
-//     data['type'] = type;
-//     data['max_marks'] = maxMarks;
-//     data['obtained_marks'] = obtainedMarks;
-//     data['answer'] = answer;
-//     return data;
-//   }
-// }
-
 
 
 

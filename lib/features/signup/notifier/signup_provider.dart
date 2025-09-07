@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-
-
 import '../../../app/router/routes.dart';
+import '../../../app/router/root_nav_key.dart'; // ← use root navigator context
 import '../../../common_ui/widgets/alerts/u_alert.dart';
+// Keep your existing repo import name/path (works with your current project)
 import '../api/signup_api.dart';
 import '../model/register_user_model.dart';
 
@@ -75,7 +75,7 @@ class SignUpNotifier extends StateNotifier<SignUpState> {
   void updatePassword(String v) => state = state.copyWith(password: v);
 
   Future<void> registerUser(BuildContext context) async {
-    // Minimal guard (UI also validates)
+    // Minimal guard (UI already validates)
     if (state.name.isEmpty ||
         state.email.isEmpty ||
         state.phoneNumber.length != 11 ||
@@ -106,26 +106,47 @@ class SignUpNotifier extends StateNotifier<SignUpState> {
 
       state = state.copyWith(isLoading: false, response: res);
 
-      final otp = res.data?.profile?.otp?.toString() ?? '';
+      final otpStr = res.data?.profile?.otp?.toString() ?? '';
 
-      // ✅ Show success alert first so user knows what happened
+      // Success dialog (unchanged UX)
       await UAlert.show(
         context: context,
         title: 'Registration successful',
-        message: otp.isNotEmpty
-            ? 'Your OTP is: $otp\n\nPlease enter it on the next screen.'
+        message: otpStr.isNotEmpty
+            ? 'Your OTP is: $otpStr\n\nPlease enter it on the next screen.'
             : 'Please enter the OTP on the next screen.',
         icon: Icons.check_circle_outline,
         iconColor: Colors.green,
       );
 
-      // ✅ Then navigate to OTP (no auto-verify)
-      if (context.mounted) {
-        final phone = state.phoneNumber;
-        final query = '${Routes.otpVerify}?phoneNumber=$phone'
-            '${otp.isNotEmpty ? '&otp=$otp' : ''}';
-        GoRouter.of(context).go(query); // replace signup to avoid back confusion
-      }
+      // Navigate after dialog closes using ROOT navigator context.
+      // This avoids trying to route from a dialog's local context.
+      if (!mounted) return; // StateNotifier mounted check
+      final phone = state.phoneNumber;
+
+      // Prefer the root navigator's context; fall back to provided context
+      final navCtx = rootNavigatorKey.currentContext ?? context;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+
+        try {
+          GoRouter.of(navCtx).goNamed(
+            Routes.otpVerify,
+            queryParams: {
+              'phoneNumber': phone,
+              if (otpStr.isNotEmpty) 'otp': otpStr,
+            },
+          );
+        } catch (_) {
+          // Fallback to path-based go if named route lookup fails
+          final query =
+              '${Routes.otpVerify}'
+              '?phoneNumber=${Uri.encodeQueryComponent(phone)}'
+              '${otpStr.isNotEmpty ? '&otp=${Uri.encodeQueryComponent(otpStr)}' : ''}';
+          GoRouter.of(navCtx).go(query);
+        }
+      });
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       await UAlert.show(
