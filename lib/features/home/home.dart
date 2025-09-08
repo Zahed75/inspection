@@ -94,7 +94,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         UAlert.show(
           title: 'Error',
-          message: 'Failed to load surveys: ${e.toString().replaceAll('Exception: ', '')}',
+          message:
+              'Failed to load surveys: ${e.toString().replaceAll('Exception: ', '')}',
           context: context,
         );
       });
@@ -120,7 +121,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   @override
-
   Widget build(BuildContext context) {
     final selectedSite = ref.watch(selectedSiteProvider);
     final siteCode = selectedSite?.siteCode ?? 'Select Site';
@@ -144,96 +144,234 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // Padding(
+            //   padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            //   child: Row(
+            //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //     crossAxisAlignment: CrossAxisAlignment.center,
+            //     children: [
+            //       Image.asset(
+            //         'assets/icons/circleIcon.png',
+            //         width: 24,
+            //         height: 24,
+            //       ),
+            //       Text(
+            //         'Home',
+            //         style: Theme.of(context).textTheme.titleLarge!.copyWith(
+            //           fontWeight: FontWeight.w900,
+            //           color: UColors.darkerGrey,
+            //         ),
+            //       ),
+            //       GestureDetector(
+            //         onTap: _openSiteLocation,
+            //         child: Row(
+            //           children: [
+            //             Column(
+            //               crossAxisAlignment: CrossAxisAlignment.end,
+            //               children: [
+            //                 ConstrainedBox(
+            //                   constraints: const BoxConstraints(maxWidth: 100),
+            //                   child: Text(
+            //                     siteCode,
+            //                     overflow: TextOverflow.ellipsis,
+            //                     style: Theme.of(context).textTheme.titleMedium!
+            //                         .copyWith(
+            //                           color: UColors.primary,
+            //                           fontWeight: FontWeight.w600,
+            //                         ),
+            //                   ),
+            //                 ),
+            //                 if (siteName.isNotEmpty)
+            //                   ConstrainedBox(
+            //                     constraints: const BoxConstraints(
+            //                       maxWidth: 100,
+            //                     ),
+            //                     child: Text(
+            //                       siteName,
+            //                       overflow: TextOverflow.ellipsis,
+            //                       style: Theme.of(context).textTheme.bodySmall!
+            //                           .copyWith(color: UColors.darkGrey),
+            //                     ),
+            //                   ),
+            //               ],
+            //             ),
+            //             const SizedBox(width: 6),
+            //             Icon(
+            //               Iconsax.location,
+            //               size: 18,
+            //               color: UColors.primary,
+            //             ),
+            //           ],
+            //         ),
+            //       ),
+            //     ],
+            //   ),
+            // ),
+
+
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  Image.asset('assets/icons/circleIcon.png', width: 24, height: 24),
-                  Text('Home', style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                    fontWeight: FontWeight.w900, color: UColors.darkerGrey,
-                  )),
-                  GestureDetector(
-                    onTap: _openSiteLocation,
-                    child: Row(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 100),
-                              child: Text(siteCode, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                                color: UColors.primary, fontWeight: FontWeight.w600,
-                              )),
-                            ),
-                            if (siteName.isNotEmpty) ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 100),
-                              child: Text(siteName, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall!.copyWith(color: UColors.darkGrey)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 6),
-                        Icon(Iconsax.location, size: 18, color: UColors.primary),
-                      ],
+                  // Centered title (independent of left/right widths)
+                  Center(
+                    child: Text(
+                      'Home',
+                      style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: UColors.darkerGrey,
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.black12 : Colors.grey[100],
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: isLoading ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(
-                  onRefresh: _fetchSurveys,
-                  child: surveys.isEmpty ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
+
+                  // Left icon and right site selector stay as-is
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 120),
-                      Center(
-                        child: Column(
+                      Image.asset(
+                        'assets/icons/circleIcon.png',
+                        width: 24,
+                        height: 24,
+                      ),
+                      GestureDetector(
+                        onTap: _openSiteLocation,
+                        child: Row(
                           children: [
-                            Text('No surveys available', style: TextStyle(color: subtitleColor)),
-                            if (siteCode != 'Select Site') Text('for site: $siteCode', style: TextStyle(color: subtitleColor, fontSize: 12)),
-                            const SizedBox(height: 16),
-                            ElevatedButton(onPressed: _openSiteLocation, child: const Text('Change Site')),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 100),
+                                  child: Text(
+                                    siteCode,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                                      color: UColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                if (siteName.isNotEmpty)
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 100),
+                                    child: Text(
+                                      siteName,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                                        color: UColors.darkGrey,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              Iconsax.location,
+                              size: 18,
+                              color: UColors.primary,
+                            ),
                           ],
                         ),
                       ),
                     ],
-                  ) : ListView.builder(
-                    itemCount: surveys.length,
-                    itemBuilder: (context, index) {
-                      final survey = surveys[index];
-                      final questionCount = survey.questions?.length ?? 0;
-                      final estimatedTime = questionCount * 1;
+                  ),
+                ],
+              ),
+            ),
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (index == 0) Padding(
-                            padding: const EdgeInsets.only(bottom: 12, top: 8),
-                            child: Text(UTexts.availabileSurvey, style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                              color: textColor, fontWeight: FontWeight.bold,
-                            )),
-                          ),
-                          SurveyInfo(
-                            title: survey.title ?? 'Untitled Survey',
-                            totalQuestions: questionCount,
-                            estimatedTime: '$estimatedTime min',
-                            onStart: () => _onStartSurvey(survey),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      );
-                    },
+            const SizedBox(height: 4),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.black12 : Colors.grey[100],
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
                   ),
                 ),
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : RefreshIndicator(
+                        onRefresh: _fetchSurveys,
+                        child: surveys.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: [
+                                  const SizedBox(height: 120),
+                                  Center(
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          'No surveys available',
+                                          style: TextStyle(
+                                            color: subtitleColor,
+                                          ),
+                                        ),
+                                        if (siteCode != 'Select Site')
+                                          Text(
+                                            'for site: $siteCode',
+                                            style: TextStyle(
+                                              color: subtitleColor,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        const SizedBox(height: 16),
+                                        ElevatedButton(
+                                          onPressed: _openSiteLocation,
+                                          child: const Text('Change Site'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : ListView.builder(
+                                itemCount: surveys.length,
+                                itemBuilder: (context, index) {
+                                  final survey = surveys[index];
+                                  final questionCount =
+                                      survey.questions?.length ?? 0;
+                                  final estimatedTime = questionCount * 1;
+
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (index == 0)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                            top: 8,
+                                          ),
+                                          child: Text(
+                                            UTexts.availabileSurvey,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleLarge!
+                                                .copyWith(
+                                                  color: textColor,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                          ),
+                                        ),
+                                      SurveyInfo(
+                                        title:
+                                            survey.title ?? 'Untitled Survey',
+                                        totalQuestions: questionCount,
+                                        estimatedTime: '$estimatedTime min',
+                                        onStart: () => _onStartSurvey(survey),
+                                      ),
+                                      const SizedBox(height: 16),
+                                    ],
+                                  );
+                                },
+                              ),
+                      ),
               ),
             ),
           ],

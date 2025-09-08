@@ -706,7 +706,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Survey Result'),
+        title: Center(child: const Text('Survey Result')),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
