@@ -4,7 +4,7 @@ description: "A new Flutter project."
 publish_to: 'none'
 
 
-version: 1.0.0+13
+version: 1.0.0+15
 
 environment:
   sdk: ^3.9.0
@@ -58,6 +58,7 @@ dependencies:
   flutter_localization: ^0.3.3
   pdf: ^3.11.3
   printing: ^5.14.2
+  file_saver: ^0.3.1
 
 
 

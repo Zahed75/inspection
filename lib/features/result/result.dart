@@ -2,6 +2,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,10 +15,12 @@ import 'package:inspection/features/result/provider/responseId_provider.dart';
 import 'package:inspection/features/result/widgets/all_question_tab.dart';
 import 'package:inspection/features/result/widgets/result_header.dart';
 import 'package:inspection/features/result/widgets/summary_tab.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../app/router/routes.dart';
 import '../../navigation_menu.dart';
 import 'model/survey_result_model.dart';
 import 'notifier/result_notifier.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 
 final resultNotifierProvider =
     StateNotifierProvider<ResultNotifier, AsyncValue<SurveyResultModel>>((ref) {
@@ -494,8 +497,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     final om = _qObtainedMarks(q);
                     final mm = _qMaxMarks(q);
 
-                    final rowCat = _extractCategory(q);          // <- safe now
-                    final catRemark = remarksMap[catName] ?? ''; // per-category
+                    final rowCat = catName;                      // always show the group’s category
+                    final catRemark = remarksMap[catName] ?? '';
+
 
                     return pw.TableRow(
                       decoration: i.isEven
@@ -585,22 +589,87 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     return await doc.save();
   }
 
+
+
+
+
+
   Future<String> _savePdfToBestPlace(Uint8List bytes, String filename) async {
-    if (Platform.isAndroid) {
+    // Base name for file_saver (no .pdf)
+    final baseName = filename.toLowerCase().endsWith('.pdf')
+        ? filename.substring(0, filename.length - 4)
+        : filename;
+
+    // --- ANDROID / iOS: try MediaStore (Downloads) via file_saver first ---
+    if (Platform.isAndroid || Platform.isIOS) {
       try {
-        final downloads = Directory('/storage/emulated/0/Download');
-        if (await downloads.exists()) {
-          final file = File('${downloads.path}/$filename');
-          await file.writeAsBytes(bytes);
-          return file.path;
+        final saver = FileSaver.instance as dynamic;
+        String? saved;
+
+        // Newer plugin signature (named params)
+        try {
+          saved = await saver.saveFile(
+            name: baseName,
+            bytes: bytes,
+            ext: 'pdf',
+            mimeType: MimeType.pdf,
+          ) as String?;
+        } catch (_) {
+          // Older plugin signature (positional params)
+          try {
+            saved = await saver.saveFile(
+              baseName,
+              bytes,
+              'pdf',
+              MimeType.pdf,
+            ) as String?;
+          } catch (_) {}
         }
-      } catch (_) {}
+
+        if (saved != null && saved.isNotEmpty) {
+          // On Android 10+ this is often a content:// URI in Downloads.
+          // Return a friendly path hint for the snackbar.
+          if (Platform.isAndroid && saved.startsWith('content://')) {
+            return 'Downloads/$filename';
+          }
+          return saved;
+        }
+      } catch (_) {
+        // fall through to legacy path
+      }
     }
+
+    // --- LEGACY / DIRECT WRITE to public Downloads (emulator & older devices) ---
+    if (Platform.isAndroid) {
+      // Try broad access first (API 30+), then legacy storage (<=28)
+      for (final p in [ph.Permission.manageExternalStorage, ph.Permission.storage]) {
+        try {
+          final status = await p.request();
+          if (status.isGranted) {
+            final downloads = Directory('/storage/emulated/0/Download');
+            if (await downloads.exists()) {
+              final file = File('${downloads.path}/$filename');
+              await file.writeAsBytes(bytes, flush: true);
+              return file.path;
+            }
+          }
+        } catch (_) {
+          // try next option / fallback below
+        }
+      }
+    }
+
+    // --- LAST RESORT: app documents dir (if all else fails) ---
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/$filename');
-    await file.writeAsBytes(bytes);
+    await file.writeAsBytes(bytes, flush: true);
     return file.path;
   }
+
+
+
+
+
 
   Future<void> _downloadPdf(SurveyResultModel result) async {
     setState(() => _exporting = true);
