@@ -22,6 +22,11 @@ final siteCodeProvider = StateProvider<String>((ref) => 'Loading...');
 final siteNameProvider = StateProvider<String>((ref) => '');
 final errorMessageProvider = StateProvider<String?>((ref) => null);
 
+// Search Provider
+
+final allSurveysProvider = StateProvider<List<Data>>((ref) => []);
+final searchQueryProvider = StateProvider<String>((ref) => '');
+
 // HomeScreen UI
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -31,9 +36,12 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  late final TextEditingController _searchController;
+
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSelectedSite();
       _fetchSurveys();
@@ -42,11 +50,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ref.listen(selectedSiteProvider, (previous, next) {
         if (next != null && next != previous) {
           print('📍 Site changed to: ${next.siteCode}');
-          _fetchSurveys(); // Refresh surveys when site changes
+          _fetchSurveys();
+
         }
       });
     });
   }
+
+  // search dispose
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // search function
+
 
   // Load selected site from storage
   Future<void> _loadSelectedSite() async {
@@ -144,71 +163,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Padding(
-            //   padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            //   child: Row(
-            //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            //     crossAxisAlignment: CrossAxisAlignment.center,
-            //     children: [
-            //       Image.asset(
-            //         'assets/icons/circleIcon.png',
-            //         width: 24,
-            //         height: 24,
-            //       ),
-            //       Text(
-            //         'Home',
-            //         style: Theme.of(context).textTheme.titleLarge!.copyWith(
-            //           fontWeight: FontWeight.w900,
-            //           color: UColors.darkerGrey,
-            //         ),
-            //       ),
-            //       GestureDetector(
-            //         onTap: _openSiteLocation,
-            //         child: Row(
-            //           children: [
-            //             Column(
-            //               crossAxisAlignment: CrossAxisAlignment.end,
-            //               children: [
-            //                 ConstrainedBox(
-            //                   constraints: const BoxConstraints(maxWidth: 100),
-            //                   child: Text(
-            //                     siteCode,
-            //                     overflow: TextOverflow.ellipsis,
-            //                     style: Theme.of(context).textTheme.titleMedium!
-            //                         .copyWith(
-            //                           color: UColors.primary,
-            //                           fontWeight: FontWeight.w600,
-            //                         ),
-            //                   ),
-            //                 ),
-            //                 if (siteName.isNotEmpty)
-            //                   ConstrainedBox(
-            //                     constraints: const BoxConstraints(
-            //                       maxWidth: 100,
-            //                     ),
-            //                     child: Text(
-            //                       siteName,
-            //                       overflow: TextOverflow.ellipsis,
-            //                       style: Theme.of(context).textTheme.bodySmall!
-            //                           .copyWith(color: UColors.darkGrey),
-            //                     ),
-            //                   ),
-            //               ],
-            //             ),
-            //             const SizedBox(width: 6),
-            //             Icon(
-            //               Iconsax.location,
-            //               size: 18,
-            //               color: UColors.primary,
-            //             ),
-            //           ],
-            //         ),
-            //       ),
-            //     ],
-            //   ),
-            // ),
-
-
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Stack(
@@ -243,25 +197,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 ConstrainedBox(
-                                  constraints: const BoxConstraints(maxWidth: 100),
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 100,
+                                  ),
                                   child: Text(
                                     siteCode,
                                     overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                                      color: UColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium!
+                                        .copyWith(
+                                          color: UColors.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                   ),
                                 ),
                                 if (siteName.isNotEmpty)
                                   ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 100),
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 100,
+                                    ),
                                     child: Text(
                                       siteName,
                                       overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                                        color: UColors.darkGrey,
-                                      ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall!
+                                          .copyWith(color: UColors.darkGrey),
                                     ),
                                   ),
                               ],

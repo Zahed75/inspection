@@ -778,26 +778,23 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             ],
           ),
         ),
+
+
+
         data: (result) {
           final processedData = _processSurveyData(result);
 
           // Normalize for the on-screen header ring/label
           final rawObt =
-              (processedData['overall']?['obtainedMarks'] as num?)
-                  ?.toDouble() ??
-              0.0;
+              (processedData['overall']?['obtainedMarks'] as num?)?.toDouble() ?? 0.0;
           final rawTot =
-              (processedData['overall']?['totalMarks'] as num?)?.toDouble() ??
-              0.0;
+              (processedData['overall']?['totalMarks'] as num?)?.toDouble() ?? 0.0;
           final obtainedForCalc = rawObt <= rawTot ? rawObt : rawTot;
           final totalForCalc = rawTot >= rawObt ? rawTot : rawObt;
-          final percent = totalForCalc == 0
-              ? 0.0
-              : obtainedForCalc / totalForCalc;
+          final percent = totalForCalc == 0 ? 0.0 : obtainedForCalc / totalForCalc;
           final resultPercentLabel = '${(percent * 100).toStringAsFixed(1)}%';
 
-          final String siteCode = (processedData['siteCode'] ?? 'N/A')
-              .toString();
+          final String siteCode = (processedData['siteCode'] ?? 'N/A').toString();
           final String? siteName = processedData['siteName']?.toString();
           final DateTime timestamp = _safeParseDate(processedData['timestamp']);
           final String feedback =
@@ -806,24 +803,25 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           final List<Map<String, dynamic>> categories =
               (processedData['categories'] as List?)
                   ?.cast<Map<String, dynamic>>() ??
-              [];
+                  [];
 
-          return DefaultTabController(
-            length: 2,
-            child: Column(
-              children: [
-                // Header: big line -> siteCode; second line -> surveyTitle
-                ResultHeader(
+          // ---- Scrollable header + single body (Summary) ----
+          return NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverToBoxAdapter(
+                child: ResultHeader(
                   siteCode: siteCode,
                   siteName: siteName,
-                  // now survey title; null hides line
                   timestamp: timestamp,
                   totalScore: obtainedForCalc.round(),
                   maxScore: totalForCalc.round(),
                   percent: percent,
                   percentLabel: resultPercentLabel,
                 ),
-                Container(
+              ),
+              // keeps the rounded-top background look for the content area
+              SliverToBoxAdapter(
+                child: Container(
                   decoration: BoxDecoration(
                     color: theme.cardColor,
                     borderRadius: const BorderRadius.only(
@@ -831,46 +829,26 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                       topRight: Radius.circular(20),
                     ),
                   ),
-                  child: TabBar(
-                    indicatorColor: theme.colorScheme.primary,
-                    labelColor: theme.colorScheme.primary,
-                    unselectedLabelColor: theme.colorScheme.onSurface
-                        .withOpacity(0.6),
-                    tabs: const [
-                      Tab(text: 'Summary'),
-                      Tab(text: 'All Questions'),
-                    ],
-                  ),
+                  height: 12, // small spacer to preserve the old visual seam
                 ),
-                Expanded(
-                  child: Container(
-                    color: theme.cardColor,
-                    child: TabBarView(
-                      children: [
-                        SummaryTab(
-                          isDark: isDark,
-                          categories: categories,
-                          feedback: feedback,
-                          qType: _qType,
-                          qText: _qText,
-                          qAnswer: _qAnswer,
-                          qObtainedMarks: _qObtainedMarks,
-                          qMaxMarks: _qMaxMarks,
-                        ),
-                        AllQuestionsTab(
-                          categories: categories,
-                          qType: _qType,
-                          qText: _qText,
-                          qAnswer: _qAnswer,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+              ),
+            ],
+            body: Container(
+              color: theme.cardColor,
+              child: SummaryTab(
+                isDark: isDark,
+                categories: categories,
+                feedback: feedback,
+                qType: _qType,
+                qText: _qText,
+                qAnswer: _qAnswer,
+                qObtainedMarks: _qObtainedMarks,
+                qMaxMarks: _qMaxMarks,
+              ),
             ),
           );
         },
+
       ),
     );
   }
