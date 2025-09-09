@@ -127,6 +127,8 @@
 
 // lib/features/result/model/survey_result_model.dart
 
+import 'package:flutter/foundation.dart';
+
 class SurveyResultModel {
   String? message;
   int? responseId;
@@ -230,6 +232,11 @@ class SubmittedQuestions {
       categoryName: json['category_name'] ?? json['category'],
     );
   }
+
+
+
+
+
 
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{};
