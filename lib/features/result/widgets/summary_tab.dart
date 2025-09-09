@@ -390,12 +390,11 @@
 
 
 
-
-
-
 // lib/features/result/widgets/summary_tab.dart
 import 'package:flutter/material.dart';
 import 'dart:math';
+
+import '../../question/model/survey_submit_model.dart';
 
 class SummaryTab extends StatefulWidget {
   const SummaryTab({
@@ -439,36 +438,111 @@ class _SummaryTabState extends State<SummaryTab> {
   }
 
   /// --- Helpers to detect & read category name from a question ---
+  /// --- Helpers to detect & read category name from a question ---
   String _categoryOf(dynamic q) {
-    // Model-like: q.categoryName / q.category
+    // 1) Try to extract from the question object directly
     try {
-      final d = q as dynamic;
-      final c1 = d.categoryName;
-      if (c1 is String && c1.trim().isNotEmpty) return c1.trim();
-      final c2 = d.category;
-      if (c2 is String && c2.trim().isNotEmpty) return c2.trim();
-    } catch (_) {}
-    // Map-like
+      if (q is Map<String, dynamic>) {
+        // Handle Map objects (from JSON)
+        final category = q['category_name'] ?? q['categoryName'] ?? q['category'];
+        if (category != null && category.toString().trim().isNotEmpty) {
+          return category.toString().trim();
+        }
+      } else if (q is SubmittedQuestions) {
+        // Handle SubmittedQuestions model objects
+        final d = q as dynamic;
+        final c1 = d.categoryName;
+        if (c1 is String && c1.trim().isNotEmpty) return c1.trim();
+        final c2 = d.category;
+        if (c2 is String && c2.trim().isNotEmpty) return c2.trim();
+      }
+    } catch (_) {
+      // Fall through to other methods
+    }
+
+    // 2) If it's a Map with nested structure, try to extract
     if (q is Map) {
-      final v = q['category_name'] ?? q['categoryName'] ?? q['category'];
-      if (v != null && v.toString().trim().isNotEmpty) {
-        return v.toString().trim();
+      final m = Map<String, dynamic>.from(q);
+
+      // Try direct keys first
+      final direct = m['category_name'] ?? m['categoryName'] ?? m['category'];
+      if (direct != null && direct.toString().trim().isNotEmpty) {
+        return direct.toString().trim();
+      }
+
+      // Try nested in question object
+      final question = m['question'];
+      if (question is Map) {
+        final nested = _categoryOf(Map<String, dynamic>.from(question));
+        if (nested.isNotEmpty && nested != 'General') return nested;
       }
     }
+
+    // 3) Fallback to text parsing (unchanged)
+    final text = widget.qText(q);
+    if (text.isNotEmpty) {
+      final mBracket = RegExp(r'^\s*\[([^\]]+)\]\s*').firstMatch(text);
+      if (mBracket != null) {
+        final cat = mBracket.group(1)?.trim();
+        if (cat != null && cat.isNotEmpty) return cat;
+      }
+      final mParen = RegExp(r'^\s*\(([^)]+)\)\s*').firstMatch(text);
+      if (mParen != null) {
+        final cat = mParen.group(1)?.trim();
+        if (cat != null && cat.isNotEmpty) return cat;
+      }
+      final mDelim = RegExp(r'^\s*([^\-\:\•\|]{3,40}?)\s*[\:\-\•\|]\s+').firstMatch(text);
+      if (mDelim != null) {
+        final raw = (mDelim.group(1) ?? '').trim();
+        final valid = raw.isNotEmpty &&
+            raw.length <= 30 &&
+            !raw.contains('?') &&
+            RegExp(r'[A-Za-z]').hasMatch(raw);
+        if (valid) return raw;
+      }
+    }
+
+    // 4) Final fallback
     return 'General';
   }
 
+
+
   /// Take the incoming categories (which may be a single bucket)
-  /// and regroup all questions by their own category_name.
+
+
+
   List<Map<String, dynamic>> _groupIntoCategories() {
-    // Collect all questions from incoming categories
+    final looksGrouped = widget.categories.isNotEmpty &&
+        widget.categories.every((c) => c.containsKey('questions'));
+
+    if (looksGrouped) {
+      final List<Map<String, dynamic>> out = [];
+      for (final c in widget.categories) {
+        final String name = (c['name'] ?? 'General').toString();
+        final List qs = (c['questions'] as List?) ?? const [];
+        double score = 0, total = 0;
+        for (final q in qs) {
+          score += widget.qObtainedMarks(q);
+          total += widget.qMaxMarks(q);
+        }
+        out.add({
+          'name': name,
+          'score': score,
+          'total': total,
+          'questions': qs,
+        });
+      }
+      return out;
+    }
+
+    // fallback regrouping (when API didn't send category blocks)
     final List allQs = [];
     for (final c in widget.categories) {
       final qs = (c['questions'] as List?) ?? const [];
       allQs.addAll(qs);
     }
 
-    // Build category map
     final Map<String, Map<String, dynamic>> grouped = {};
     for (final q in allQs) {
       final cat = _categoryOf(q);
@@ -489,13 +563,14 @@ class _SummaryTabState extends State<SummaryTab> {
       bucket['total'] = (bucket['total'] as double) + max;
     }
 
-    // To keep UX stable, sort by category name (optional, but deterministic)
     final list = grouped.values.toList();
-    list.sort((a, b) => (a['name'] as String).toLowerCase().compareTo(
-      (b['name'] as String).toLowerCase(),
-    ));
+    list.sort((a, b) => (a['name'] as String)
+        .toLowerCase()
+        .compareTo((b['name'] as String).toLowerCase()));
     return list;
   }
+
+
 
   /// Ensure per-category expansion/pagination maps have defaults
   void _ensureStateForLength(int len) {
@@ -649,6 +724,31 @@ class _SummaryTabState extends State<SummaryTab> {
     }).toList();
   }
 
+  // GET CATEGORY NAME
+  String _getCategoryName(dynamic q) {
+    // 1) Try to get categoryName directly from SubmittedQuestions model
+    try {
+      if (q is SubmittedQuestions) {
+        if (q.categoryName != null && q.categoryName!.trim().isNotEmpty) {
+          return q.categoryName!.trim();
+        }
+      }
+    } catch (_) {
+      // Fall through to other methods
+    }
+
+    // 2) Try to get from Map if it's not a SubmittedQuestions object
+    if (q is Map) {
+      final category = q['category_name'] ?? q['categoryName'];
+      if (category != null && category.toString().trim().isNotEmpty) {
+        return category.toString().trim();
+      }
+    }
+
+    // 3) Fallback to empty string (no category will be displayed)
+    return '';
+  }
+
   List<Widget> _buildQuestionsList(
       List<dynamic> questions,
       int visibleCount,
@@ -669,10 +769,11 @@ class _SummaryTabState extends State<SummaryTab> {
         final maxMarks = widget.qMaxMarks(q);
         final questionPercent = maxMarks > 0 ? obtainedMarks / maxMarks : 0.0;
 
+        // NEW: Extract category name from the question
+        final categoryName = _getCategoryName(q);
+
         return Container(
-          color: qIndex.isEven
-              ? theme.colorScheme.surface.withOpacity(0.1)
-              : null,
+          color: qIndex.isEven ? theme.colorScheme.surface.withOpacity(0.1) : null,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -702,6 +803,18 @@ class _SummaryTabState extends State<SummaryTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // NEW: Display category name above question
+                    if (categoryName.isNotEmpty && categoryName != 'General')
+                      Text(
+                        categoryName,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary.withOpacity(0.7),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    if (categoryName.isNotEmpty && categoryName != 'General')
+                      const SizedBox(height: 4),
+
                     Text(
                       text,
                       style: textTheme.bodyMedium?.copyWith(
@@ -710,9 +823,8 @@ class _SummaryTabState extends State<SummaryTab> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // Answer (unchanged UI)
                     Text(
-                      answer, // toString already handled by caller
+                      answer,
                       style: textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface.withOpacity(0.7),
                       ),
@@ -760,7 +872,7 @@ class _SummaryTabState extends State<SummaryTab> {
         );
       }),
 
-      // Show More Button
+      // Show More Button (unchanged)
       if (canShowMore)
         Padding(
           padding: const EdgeInsets.all(16),

@@ -117,17 +117,92 @@
 //   }
 // }
 
-
-
-
-
-
-
-
-
 // lib/features/result/model/survey_result_model.dart
 
+
+
+
+
+
+
+
 import 'package:flutter/foundation.dart';
+
+class SubmittedQuestions {
+  final int? questionId;
+  final String? questionText;
+  final String? type;
+  final int? maxMarks;
+  final double? obtainedMarks;
+  final dynamic answer;
+  final String? categoryName; // ADDED: Category name field
+
+  SubmittedQuestions({
+    this.questionId,
+    this.questionText,
+    this.type,
+    this.maxMarks,
+    this.obtainedMarks,
+    this.answer,
+    this.categoryName, // ADDED: Category name field
+  });
+
+  factory SubmittedQuestions.fromJson(Map<String, dynamic> json) {
+    return SubmittedQuestions(
+      questionId: json['question_id'],
+      questionText: json['question_text'],
+      type: json['type'],
+      maxMarks: json['max_marks'],
+      obtainedMarks: (json['obtained_marks'] as num?)?.toDouble(),
+      answer: json['answer'],
+      categoryName: json['category_name'], // ADDED: Extract category_name from JSON
+    );
+  }
+
+  @override
+  String toString() {
+    return 'SubmittedQuestions{questionId: $questionId, questionText: $questionText, type: $type, maxMarks: $maxMarks, obtainedMarks: $obtainedMarks, answer: $answer, categoryName: $categoryName}';
+  }
+}
+
+class CategoryBlock {
+  final String? name;
+  final List<SubmittedQuestions> questions;
+
+  CategoryBlock({this.name, required this.questions});
+
+  factory CategoryBlock.fromJson(Map<String, dynamic> json) {
+    final rawName =
+        json['name'] ??
+            json['category_name'] ??
+            json['categoryName'] ??
+            json['categoryTitle'] ??
+            json['category'];
+
+    final rawList =
+    (json['questions'] ?? json['items'] ?? json['submitted_questions'])
+    as List<dynamic>?;
+
+    final qs = (rawList ?? const [])
+        .whereType<Map>() // tolerate dynamic maps
+        .map(
+          (e) => SubmittedQuestions.fromJson(Map<String, dynamic>.from(e as Map)),
+    )
+        .toList();
+
+    return CategoryBlock(
+      name: (rawName is String && rawName.trim().isNotEmpty)
+          ? rawName.trim()
+          : null,
+      questions: qs,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'CategoryBlock{name: $name, questions: $questions}';
+  }
+}
 
 class SurveyResultModel {
   String? message;
@@ -136,20 +211,19 @@ class SurveyResultModel {
   int? totalScore;
   double? percentage;
 
-  // ✅ make sure these 3 are mapped in fromJson
   String? submittedBy;
   String? submittedUserPhone;
   String? submittedAt;
 
-  // ✅ these already exist but ensure they are mapped in fromJson
   String? siteCode;
   String? outletCode;
 
-  // Useful for header/subtitle (you already use this)
   String? surveyTitle;
 
   List<SubmittedQuestions>? submittedQuestions;
   int? userId;
+
+  List<CategoryBlock>? categories;
 
   SurveyResultModel({
     this.message,
@@ -165,9 +239,35 @@ class SurveyResultModel {
     this.surveyTitle,
     this.submittedQuestions,
     this.userId,
+    this.categories,
   });
 
   factory SurveyResultModel.fromJson(Map<String, dynamic> json) {
+    // --- Strongly type the two lists from the API ---
+    final List<dynamic>? rawQs =
+    (json['submitted_questions'] ?? json['questions']) as List<dynamic>?;
+
+    final List<dynamic>? rawCats =
+    (json['categories'] ??
+        json['by_category'] ??
+        json['category_wise'] ??
+        json['categoryWise'])
+    as List<dynamic>?;
+
+    // Map submitted_questions -> List<SubmittedQuestions>
+    final List<SubmittedQuestions>? submittedQs = rawQs
+        ?.whereType<Map>() // tolerate dynamic
+        .map(
+          (q) => SubmittedQuestions.fromJson(Map<String, dynamic>.from(q as Map)),
+    )
+        .toList();
+
+    // Map categories -> List<CategoryBlock>
+    final List<CategoryBlock>? cats = rawCats
+        ?.whereType<Map>()
+        .map((c) => CategoryBlock.fromJson(Map<String, dynamic>.from(c as Map)))
+        .toList();
+
     return SurveyResultModel(
       message: json['message'],
       responseId: json['response_id'] ?? json['id'],
@@ -175,78 +275,25 @@ class SurveyResultModel {
       totalScore: json['total_score'] as int?,
       percentage: (json['percentage'] as num?)?.toDouble(),
 
-      // ✅ map submitter fields
       submittedBy: json['submitted_by'] ?? json['submitted_user_name'],
       submittedUserPhone: json['submitted_user_phone'] ?? json['phone'],
-
-      // ✅ map timestamp
       submittedAt: json['submitted_at'] ?? json['created_at'],
 
-      // ✅ map site codes
       siteCode: json['site_code'],
       outletCode: json['outlet_code'] ?? json['outletCode'],
 
-      // Header/subtitle
       surveyTitle: json['survey_title'] ?? json['title'],
 
-      // Questions
-      submittedQuestions: (json['submitted_questions'] ?? json['questions'])
-          ?.map<SubmittedQuestions>((q) => SubmittedQuestions.fromJson(q))
-          .toList(),
+      submittedQuestions: submittedQs,
       userId: json['user_id'] as int?,
-    );
-  }
-}
 
-class SubmittedQuestions {
-  int? questionId;
-  String? questionText;
-  String? type;
-  int? maxMarks;
-  double? obtainedMarks;
-  dynamic answer;
-
-  // ✅ new
-  String? categoryName;
-
-  SubmittedQuestions({
-    this.questionId,
-    this.questionText,
-    this.type,
-    this.maxMarks,
-    this.obtainedMarks,
-    this.answer,
-    this.categoryName, // ✅
-  });
-
-  factory SubmittedQuestions.fromJson(Map<String, dynamic> json) {
-    return SubmittedQuestions(
-      questionId: json['question_id'] ?? json['id'],
-      questionText: json['question_text'] ?? json['text'],
-      type: json['type'],
-      maxMarks: json['max_marks'] ?? json['marks'],
-      obtainedMarks: (json['obtained_marks'] as num?)?.toDouble(),
-      answer: json['answer'] ?? json['value'],
-
-      // ✅ keep the category from payload (your JSON has "category_name")
-      categoryName: json['category_name'] ?? json['category'],
+      // Server-provided categories, if any
+      categories: cats,
     );
   }
 
-
-
-
-
-
-  Map<String, dynamic> toJson() {
-    final data = <String, dynamic>{};
-    data['question_id'] = questionId;
-    data['question_text'] = questionText;
-    data['type'] = type;
-    data['max_marks'] = maxMarks;
-    data['obtained_marks'] = obtainedMarks;
-    data['answer'] = answer?.toString();
-    data['category_name'] = categoryName; // ✅
-    return data;
+  @override
+  String toString() {
+    return 'SurveyResultModel{message: $message, responseId: $responseId, obtainedScore: $obtainedScore, totalScore: $totalScore, percentage: $percentage, submittedBy: $submittedBy, submittedUserPhone: $submittedUserPhone, submittedAt: $submittedAt, siteCode: $siteCode, outletCode: $outletCode, surveyTitle: $surveyTitle, submittedQuestions: $submittedQuestions, userId: $userId, categories: $categories}';
   }
 }
