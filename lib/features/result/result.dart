@@ -197,6 +197,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     String? resolvedSiteName,
   }) async {
     final data = _processSurveyData(result);
+    final siteName = resolvedSiteName ?? 'Unknown Site'; // Default if null
 
     final allQs = (result.submittedQuestions ?? []).toList();
     final nonRemarks = allQs.where((q) => _qType(q) != 'remarks').toList();
@@ -453,6 +454,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   runSpacing: 6,
                   children: [
                     _chip('Site: $siteCode'),
+                    _chip('Site Name: $siteName'), // Ensure Site Name is included
                     _chip(dateStr),
                     if (submitterLine.isNotEmpty)
                       _chip('Submitted: $submitterLine'),
@@ -722,6 +724,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                           orElse: () {},
                         );
                         _downloadPdf(res, siteName: siteName);
+
                       },
                       loading: () => ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -789,10 +792,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               : obtainedForCalc / totalForCalc;
           final resultPercentLabel = '${(percent * 100).toStringAsFixed(1)}%';
 
-          final String siteCode = (processedData['siteCode'] ?? 'N/A')
-              .toString();
+          final String siteCode = (processedData['siteCode'] ?? 'N/A').toString();
 
-          // Correct & synchronous Site Name resolution for on-screen header
           final sitesAsync = ref.watch(allSitesProvider);
           String? siteNameResolved;
           sitesAsync.maybeWhen(
@@ -800,15 +801,16 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               siteNameResolved = sites
                   .firstWhere(
                     (s) =>
-                        (s.siteCode ?? '').toString().trim() == siteCode.trim(),
-                    orElse: () => Sites(),
-                  )
+                (s.siteCode ?? '').toString().trim() == siteCode.trim(),
+                orElse: () => Sites(),
+              )
                   .name;
             },
             orElse: () {},
           );
 
           final String? siteName = siteNameResolved;
+
 
           final DateTime timestamp = _safeParseDate(processedData['timestamp']);
           final String feedback =
