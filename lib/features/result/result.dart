@@ -448,16 +448,20 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     color: PdfColors.deepPurple800,
                   ),
                 ),
+
                 pw.SizedBox(height: 8),
+
                 pw.Wrap(
                   spacing: 8,
                   runSpacing: 6,
                   children: [
                     _chip('Site: $siteCode'),
                     _chip('Site Name: $siteName'), // Ensure Site Name is included
+
                     _chip(dateStr),
                     if (submitterLine.isNotEmpty)
                       _chip('Submitted: $submitterLine'),
+
                   ],
                 ),
                 pw.SizedBox(height: 14),
