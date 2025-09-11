@@ -3,16 +3,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:inspection/services/survey_storage_service.dart';
 
 import 'features/dashboard/dashboard.dart';
 import 'features/home/home.dart';
 import 'features/profile/profile.dart';
+import 'features/result/model/survey_result_model.dart';
 import 'features/result/provider/responseId_provider.dart';
 import 'features/result/result.dart';
 import 'features/site/provider/selected_site_provider.dart';
 
-
 final selectedIndexProvider = StateProvider<int>((ref) => 0);
+
+// Add this provider to watch for saved survey results
+final savedSurveyResultProvider = FutureProvider<SurveyResultModel?>((ref) async {
+
+  return await SurveyStorageService.getSurveyResult();
+});
 
 class NavigationMenu extends ConsumerWidget {
   const NavigationMenu({super.key});
@@ -24,7 +31,15 @@ class NavigationMenu extends ConsumerWidget {
     final latestResponseId = ref.watch(latestResponseIdProvider);
     final selectedSite = ref.watch(selectedSiteProvider);
 
+    // Load saved survey result from storage
+    final savedResultFuture = ref.watch(savedSurveyResultProvider);
+    SurveyResultModel? savedResult;
 
+    savedResultFuture.when(
+      data: (result) => savedResult = result,
+      loading: () => savedResult = null,
+      error: (_, __) => savedResult = null,
+    );
 
     Widget body;
     switch (index) {
@@ -32,9 +47,11 @@ class NavigationMenu extends ConsumerWidget {
         body = const HomeScreen();
         break;
       case 1:
-      // Show ResultScreen if we have a latest response ID, otherwise show placeholder
-        body = latestResponseId != null && latestResponseId > 0
-            ? ResultScreen(responseId: latestResponseId)
+      // Show ResultScreen if we have a saved result or the latest response ID
+        final effectiveResponseId = savedResult?.responseId ?? latestResponseId;
+
+        body = (effectiveResponseId != null && effectiveResponseId > 0)
+            ? ResultScreen(responseId: effectiveResponseId)
             : const Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -81,41 +98,36 @@ class NavigationMenu extends ConsumerWidget {
             borderRadius: BorderRadius.circular(20),
             child: Container(
               decoration: BoxDecoration(
-                color: dark ? Colors.black12 : Colors.grey[100],
+                color: Colors.grey[100],
                 border: Border.all(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.05)
-                      : Colors.black.withValues(alpha: 0.05),
+                  color: Colors.black.withOpacity(0.05),
                 ),
               ),
               child: NavigationBar(
                 height: 64,
                 elevation: 0,
-                backgroundColor: dark ? Colors.black12 : Colors.grey[100],
-                indicatorColor: dark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.08),
+                backgroundColor: Colors.grey[100],
+                indicatorColor: Colors.black.withOpacity(0.08),
                 labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                 selectedIndex: index,
                 onDestinationSelected: (i) {
                   ref.read(selectedIndexProvider.notifier).state = i;
-                  // Don't clear the latest response ID when switching tabs
                 },
                 destinations: const [
                   NavigationDestination(
-                    icon: Icon(Iconsax.home),
+                    icon: Icon(Icons.home),
                     label: 'Home',
                   ),
                   NavigationDestination(
-                    icon: Icon(Iconsax.shop),
+                    icon: Icon(Icons.history),
                     label: 'History',
                   ),
                   NavigationDestination(
-                    icon: Icon(Iconsax.menu_board),
+                    icon: Icon(Icons.dashboard),
                     label: 'Dashboard',
                   ),
                   NavigationDestination(
-                    icon: Icon(Iconsax.user),
+                    icon: Icon(Icons.account_circle),
                     label: 'Profile',
                   ),
                 ],

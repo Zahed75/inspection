@@ -19,6 +19,7 @@ import 'package:permission_handler/permission_handler.dart' as ph;
 
 import '../../app/router/routes.dart';
 import '../../navigation_menu.dart';
+import '../../services/survey_storage_service.dart';
 import '../site/provider/state_provider.dart';
 import 'model/survey_result_model.dart';
 import 'notifier/result_notifier.dart';
@@ -46,6 +47,29 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetchResult(ref));
+    _loadSavedSurveyResult();
+  }
+
+// Load the saved survey result when the screen is loaded
+  Future<void> _loadSavedSurveyResult() async {
+    try {
+      final savedResult = await SurveyStorageService.getSurveyResult();
+      print('Loaded saved result: $savedResult');
+
+      if (savedResult != null && savedResult.responseId != null) {
+        // Use the saved result if available and valid
+        ref.read(resultNotifierProvider.notifier).state = AsyncValue.data(savedResult);
+        // Also update the latest response ID
+        ref.read(latestResponseIdProvider.notifier).state = savedResult.responseId!;
+      } else {
+        // If no saved result, fetch it from the API using the provided responseId
+        _fetchResult(ref);
+      }
+    } catch (e) {
+      print('Error loading saved result: $e');
+      // Fallback to API fetch
+      _fetchResult(ref);
+    }
   }
 
   Future<void> _fetchResult(WidgetRef ref) async {
