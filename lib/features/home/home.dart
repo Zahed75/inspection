@@ -174,7 +174,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       'Home',
                       style: Theme.of(context).textTheme.titleLarge!.copyWith(
                         fontWeight: FontWeight.w900,
-                        color: UColors.darkerGrey,
+                        color: UColors.warning,
                       ),
                     ),
                   ),

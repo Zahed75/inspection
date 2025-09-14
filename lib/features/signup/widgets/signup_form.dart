@@ -1,6 +1,4 @@
 // lib/features/authentication/screens/signup/widgets/signup_form.dart
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,6 +37,8 @@ class _USignupFormState extends ConsumerState<USignupForm> {
     'Support',
     'HR',
     'Developer',
+    'Regional head of Operations (ROH)',
+    'Field Support'
   ];
 
   @override

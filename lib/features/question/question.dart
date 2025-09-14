@@ -1,4 +1,4 @@
-// New Question Screen!
+
 // lib/features/question/question.dart
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -391,11 +391,14 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
     );
   }
 
+
+
+
   Widget _buildQuestionCard(
-    Map<String, dynamic> question,
-    int serialNumber,
-    String category,
-  ) {
+      Map<String, dynamic> question,
+      int serialNumber,
+      String category,
+      ) {
     final theme = Theme.of(context);
     final id = question['id'];
     final type = question['type'];
@@ -448,45 +451,23 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        text,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: theme.textTheme.bodyMedium?.color,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Left: Required chip (if any)
-                          if (isRequired)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                "Required",
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                          Expanded(
+                            child: Text(
+                              text,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: theme.textTheme.bodyMedium?.color,
                               ),
                             ),
-
-                          // Push the next widget to the far right
-                          const Spacer(),
-
-                          // Right: Marks chip (if any)
+                          ),
+                          // Right: Marks chip (if any) - moved to the right side
                           if (marks != null)
                             Container(
+                              margin: const EdgeInsets.only(left: 8),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
                                 vertical: 2,
@@ -506,6 +487,7 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
                             ),
                         ],
                       ),
+                      const SizedBox(height: 4),
                     ],
                   ),
                 ),
