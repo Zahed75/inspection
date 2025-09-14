@@ -54,11 +54,25 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
   // ⬇️ controller for the search bar
   late final TextEditingController _questionSearchController;
 
+  // NEW: one controller per text/remarks question
+  final Map<int, TextEditingController> _textControllers = {};
+
+  TextEditingController _getTextController(int id, String? initial) {
+    if (_textControllers[id] != null) return _textControllers[id]!;
+    final c = TextEditingController(text: initial ?? '');
+    _textControllers[id] = c;
+    return c;
+  }
+
   @override
   void initState() {
     super.initState();
 
     _questionSearchController = TextEditingController();
+    // NEW: dispose controllers
+    for (final c in _textControllers.values) {
+      c.dispose();
+    }
 
     // Build the serial map once from incoming questions order
     final List questions = (widget.surveyData['questions'] as List?) ?? [];
@@ -343,6 +357,7 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
+
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: theme.cardColor,
@@ -723,14 +738,52 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
     );
   }
 
+  // Widget _buildTextInput(int id) {
+  //   final theme = Theme.of(context);
+  //   return TextField(
+  //     maxLines: 3,
+  //     onChanged: (val) {
+  //       ref.read(answersProvider.notifier).update((state) {
+  //         return {...state, id: val};
+  //       });
+  //     },
+  //     style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+  //     decoration: InputDecoration(
+  //       hintText: "Type your response here...",
+  //       hintStyle: TextStyle(color: theme.textTheme.bodySmall?.color),
+  //       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+  //       filled: true,
+  //       fillColor: theme.colorScheme.surface,
+  //     ),
+  //   );
+  // }
+
+
   Widget _buildTextInput(int id) {
     final theme = Theme.of(context);
+
+    // current value from state
+    final current = ref.watch(answersProvider)[id];
+    final currentStr = (current ?? '').toString();
+
+    // controller for this question id
+    final controller = _getTextController(id, currentStr);
+
+    // if provider changed elsewhere (e.g., restore), reflect it in the controller
+    if (controller.text != currentStr) {
+      controller.value = controller.value.copyWith(
+        text: currentStr,
+        selection: TextSelection.collapsed(offset: currentStr.length),
+        composing: TextRange.empty,
+      );
+    }
+
     return TextField(
+      controller: controller,
       maxLines: 3,
       onChanged: (val) {
-        ref.read(answersProvider.notifier).update((state) {
-          return {...state, id: val};
-        });
+        // write through to provider
+        ref.read(answersProvider.notifier).update((state) => {...state, id: val});
       },
       style: TextStyle(color: theme.textTheme.bodyMedium?.color),
       decoration: InputDecoration(
@@ -742,6 +795,7 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
       ),
     );
   }
+
 
   Widget _buildLinearInput(Map<String, dynamic> question, int id) {
     final theme = Theme.of(context);
