@@ -1,4 +1,4 @@
-// lib/features/result/result.dart
+// // lib/features/result/result.dart
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -58,12 +58,16 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
       if (savedResult != null && savedResult.responseId != null) {
         // Use the saved result if available and valid
-        ref.read(resultNotifierProvider.notifier).state = AsyncValue.data(
+        ref
+            .read(resultNotifierProvider.notifier)
+            .state = AsyncValue.data(
           savedResult,
         );
         // Also update the latest response ID
-        ref.read(latestResponseIdProvider.notifier).state =
-            savedResult.responseId!;
+        ref
+            .read(latestResponseIdProvider.notifier)
+            .state =
+        savedResult.responseId!;
       } else {
         // If no saved result, fetch it from the API using the provided responseId
         _fetchResult(ref);
@@ -78,7 +82,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   Future<void> _fetchResult(WidgetRef ref) async {
     final notifier = ref.read(resultNotifierProvider.notifier);
     await notifier.fetchSurveyResult(widget.responseId);
-    ref.read(latestResponseIdProvider.notifier).state = widget.responseId;
+    ref
+        .read(latestResponseIdProvider.notifier)
+        .state = widget.responseId;
   }
 
   Map<String, dynamic> _processSurveyData(SurveyResultModel result) {
@@ -92,7 +98,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       final categoryKey = categoryName.isNotEmpty ? categoryName : 'General';
       categoryMap.putIfAbsent(
         categoryKey,
-        () => {
+            () =>
+        {
           'name': categoryKey,
           'score': 0.0,
           'total': 0.0,
@@ -108,15 +115,22 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     final categories = categoryMap.values.toList();
 
     String feedback = 'No feedback submitted.';
-    if (remarks.isNotEmpty && (_qAnswer(remarks.first).toString().isNotEmpty)) {
+    if (remarks.isNotEmpty && (_qAnswer(remarks.first)
+        .toString()
+        .isNotEmpty)) {
       feedback = _qAnswer(remarks.first);
     }
 
-    final resolvedSiteCode = (result.outletCode?.trim().isNotEmpty == true)
+    final resolvedSiteCode = (result.outletCode
+        ?.trim()
+        .isNotEmpty == true)
         ? result.outletCode!.trim()
-        : (result.siteCode?.trim().isNotEmpty == true
-              ? result.siteCode!.trim()
-              : 'N/A');
+        : (result.siteCode
+        ?.trim()
+        .isNotEmpty == true
+        ? result.siteCode!.trim()
+        : 'N/A');
+    print(result.outletCode);
 
     return {
       'overall': {
@@ -126,11 +140,12 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       },
       'categories': categories,
       'siteCode': resolvedSiteCode,
-      'siteName': null,
+      'siteName': Null,
       'timestamp': result.submittedAt ?? DateTime.now().toIso8601String(),
       'feedback': feedback,
     };
   }
+
 
   static String _qType(dynamic q) {
     if (q is SubmittedQuestions) return q.type ?? '';
@@ -172,7 +187,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     } catch (_) {}
     if (q is Map) {
       final v = q['category_name'] ?? q['categoryName'] ?? q['category'];
-      if (v != null && v.toString().trim().isNotEmpty) {
+      if (v != null && v
+          .toString()
+          .trim()
+          .isNotEmpty) {
         return v.toString().trim();
       }
     }
@@ -199,7 +217,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
         (d.survey != null) ? d.survey.title : null,
       ];
       for (final c in candidates) {
-        if (c is String && c.trim().isNotEmpty) return c.trim();
+        if (c is String && c
+            .trim()
+            .isNotEmpty) return c.trim();
       }
     } catch (_) {}
     return 'Survey';
@@ -217,373 +237,13 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     return map;
   }
 
-  // --------- PDF builder with fixed header + spanned remarks ----------
-  // Future<Uint8List> _buildPdfBytesWithFormat(
-  //   SurveyResultModel result,
-  //   PdfPageFormat pageFormat, {
-  //   String? resolvedSiteName,
-  // }) async {
-  //   final data = _processSurveyData(result);
-  //   final siteName = resolvedSiteName ?? 'Unknown Site'; // Default if null
-  //
-  //   final allQs = (result.submittedQuestions ?? []).toList();
-  //   final nonRemarks = allQs.where((q) => _qType(q) != 'remarks').toList();
-  //   final remarksMap = _remarksByCategory(allQs);
-  //
-  //   final Map<String, List> byCategory = {};
-  //   for (final q in nonRemarks) {
-  //     final categoryName = _qCategory(q);
-  //     final categoryKey = categoryName.isNotEmpty ? categoryName : 'General';
-  //     byCategory.putIfAbsent(categoryKey, () => []).add(q);
-  //   }
-  //
-  //   final siteCode = (data['siteCode'] ?? result.siteCode ?? 'N/A').toString();
-  //   final timestamp = _safeParseDate(data['timestamp']);
-  //   final dateStr = DateFormat('MMMM d, y - h:mm a').format(timestamp);
-  //
-  //   final surveyTitle = (() {
-  //     if ((result.surveyTitle ?? '').trim().isNotEmpty) {
-  //       return result.surveyTitle!.trim();
-  //     }
-  //     final fromData = (data['siteName']?.toString().trim() ?? '');
-  //     if (fromData.isNotEmpty) return fromData;
-  //     return _surveyTitleFrom(result);
-  //   })();
-  //
-  //   final overall = (data['overall'] as Map?) ?? {};
-  //   final rawObt = (overall['obtainedMarks'] as num?)?.toDouble() ?? 0.0;
-  //   final rawTot = (overall['totalMarks'] as num?)?.toDouble() ?? 0.0;
-  //   final obtained = rawObt <= rawTot ? rawObt : rawTot;
-  //   final total = rawTot >= rawObt ? rawTot : rawObt;
-  //   final percent = total == 0 ? 0.0 : (obtained / total * 100.0);
-  //
-  //   final overallFeedback =
-  //       data['feedback']?.toString() ?? 'No feedback submitted.';
-  //
-  //   final submitterName = (result.submittedBy ?? '').toString().trim();
-  //   final submitterPhone = (result.submittedUserPhone ?? '').toString().trim();
-  //   final submitterLine = [
-  //     if (submitterName.isNotEmpty) submitterName,
-  //     if (submitterPhone.isNotEmpty) '($submitterPhone)',
-  //   ].join(' ').trim();
-  //
-  //   final pdf = pw.Document();
-  //
-  //   pw.Widget _chip(String label) {
-  //     return pw.Container(
-  //       padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-  //       decoration: pw.BoxDecoration(
-  //         color: PdfColors.deepPurple100,
-  //         borderRadius: pw.BorderRadius.circular(6),
-  //         border: pw.Border.all(color: PdfColors.deepPurple200, width: 0.5),
-  //       ),
-  //       child: pw.Text(
-  //         label,
-  //         style: pw.TextStyle(
-  //           color: PdfColors.deepPurple800,
-  //           fontSize: 9,
-  //           fontWeight: pw.FontWeight.bold,
-  //         ),
-  //       ),
-  //     );
-  //   }
-  //
-  //   pw.Widget _metricCard({
-  //     required String title,
-  //     required String value,
-  //     PdfColor color = PdfColors.deepPurple,
-  //   }) {
-  //     return pw.Container(
-  //       padding: const pw.EdgeInsets.all(12),
-  //       decoration: pw.BoxDecoration(
-  //         color: PdfColors.white,
-  //         borderRadius: pw.BorderRadius.circular(10),
-  //         border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
-  //       ),
-  //       child: pw.Column(
-  //         crossAxisAlignment: pw.CrossAxisAlignment.start,
-  //         children: [
-  //           pw.Text(
-  //             title,
-  //             style: pw.TextStyle(
-  //               color: PdfColors.grey700,
-  //               fontSize: 10,
-  //               fontWeight: pw.FontWeight.bold,
-  //             ),
-  //           ),
-  //           pw.SizedBox(height: 4),
-  //           pw.Text(
-  //             value,
-  //             style: pw.TextStyle(
-  //               color: color,
-  //               fontSize: 16,
-  //               fontWeight: pw.FontWeight.bold,
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     );
-  //   }
-  //
-  //   // Section builder producing a table with a spanning remarks panel.
-  //   pw.Widget _categoryBlock(String catName, List qs, String catRemark) {
-  //     // Compute category score
-  //     double catObt = 0, catMax = 0;
-  //     for (final q in qs) {
-  //       catObt += _qObtainedMarks(q);
-  //       catMax += _qMaxMarks(q);
-  //     }
-  //     final catPercent = catMax == 0 ? 0.0 : (catObt / catMax * 100.0);
-  //
-  //     // Left table: No/Category/Question/Answer/Marks (NO per-row remarks)
-  //     final leftTable = pw.Table(
-  //       border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-  //       columnWidths: {
-  //         0: const pw.FixedColumnWidth(28), // No.
-  //         1: const pw.FlexColumnWidth(2), // Category
-  //         2: const pw.FlexColumnWidth(3), // Question
-  //         3: const pw.FlexColumnWidth(2), // Answer
-  //         4: const pw.FixedColumnWidth(60), // Marks
-  //       },
-  //       children: [
-  //         pw.TableRow(
-  //           decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-  //           children: [
-  //             _buildPdfCell('No.', bold: true),
-  //             _buildPdfCell('Category', bold: true),
-  //             _buildPdfCell('Question', bold: true),
-  //             _buildPdfCell('Answer', bold: true),
-  //             _buildPdfCell('Marks', bold: true, alignEnd: true),
-  //           ],
-  //         ),
-  //         ...qs.asMap().entries.map((e) {
-  //           final i = e.key;
-  //           final q = e.value;
-  //           final qText = _qText(q);
-  //           final qAns = _qAnswer(q);
-  //           final om = _qObtainedMarks(q);
-  //           final mm = _qMaxMarks(q);
-  //           return pw.TableRow(
-  //             decoration: i.isEven
-  //                 ? const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF9F9F9))
-  //                 : null,
-  //             children: [
-  //               _buildPdfCell('${i + 1}'),
-  //               _buildPdfCell(catName),
-  //               _buildPdfCell(qText),
-  //               _buildPdfCell(qAns),
-  //               _buildPdfCell(
-  //                 '${om.toStringAsFixed(0)}/${mm.toStringAsFixed(0)}',
-  //                 alignEnd: true,
-  //               ),
-  //             ],
-  //           );
-  //         }),
-  //       ],
-  //     );
-  //
-  //     // Right "spanned" remarks panel (equal height via flexible layout)
-  //     final rightRemarks = pw.Container(
-  //       padding: const pw.EdgeInsets.all(8),
-  //       decoration: pw.BoxDecoration(
-  //         color: PdfColors.grey100,
-  //         borderRadius: pw.BorderRadius.circular(8),
-  //         border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
-  //       ),
-  //       child: pw.Column(
-  //         crossAxisAlignment: pw.CrossAxisAlignment.start,
-  //         children: [
-  //           pw.Text(
-  //             'Remarks',
-  //             style: pw.TextStyle(
-  //               fontSize: 10,
-  //               fontWeight: pw.FontWeight.bold,
-  //               color: PdfColors.grey700,
-  //             ),
-  //           ),
-  //           pw.SizedBox(height: 6),
-  //           // In the _categoryBlock method, change the remarks text display:
-  //           pw.Text(
-  //             (catRemark.isNotEmpty) ? catRemark.replaceAll(':', '-') : '—',
-  //             style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800),
-  //           ),
-  //         ],
-  //       ),
-  //     );
-  //
-  //     return pw.Column(
-  //       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-  //       children: [
-  //         // Category header line
-  //         pw.Container(
-  //           margin: const pw.EdgeInsets.only(bottom: 6),
-  //           child: pw.Row(
-  //             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-  //             children: [
-  //               pw.Text(
-  //                 catName,
-  //                 style: pw.TextStyle(
-  //                   fontSize: 14,
-  //                   fontWeight: pw.FontWeight.bold,
-  //                   color: PdfColors.grey800,
-  //                 ),
-  //               ),
-  //               pw.Text(
-  //                 '${catPercent.toStringAsFixed(1)}%   •   ${catObt.round()}/${catMax.round()}',
-  //                 style: const pw.TextStyle(
-  //                   fontSize: 10,
-  //                   color: PdfColors.grey700,
-  //                 ),
-  //               ),
-  //             ],
-  //           ),
-  //         ),
-  //         // The grid: left table + right spanning remarks
-  //         pw.Row(
-  //           crossAxisAlignment: pw.CrossAxisAlignment.start,
-  //           children: [
-  //             pw.Expanded(flex: 7, child: leftTable),
-  //             pw.SizedBox(width: 8),
-  //             pw.Expanded(flex: 3, child: rightRemarks),
-  //           ],
-  //         ),
-  //       ],
-  //     );
-  //   }
-  //
-  //   pdf.addPage(
-  //     pw.MultiPage(
-  //       pageFormat: pageFormat,
-  //       margin: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-  //       build: (_) => [
-  //         // ===== Header (only Site code chip per requirement) =====
-  //         pw.Container(
-  //           width: double.infinity,
-  //           padding: const pw.EdgeInsets.all(16),
-  //           decoration: pw.BoxDecoration(
-  //             color: PdfColors.deepPurple50,
-  //             borderRadius: pw.BorderRadius.circular(12),
-  //             border: pw.Border.all(color: PdfColors.deepPurple100, width: 1),
-  //           ),
-  //           child: pw.Column(
-  //             crossAxisAlignment: pw.CrossAxisAlignment.start,
-  //             children: [
-  //               pw.Text(
-  //                 surveyTitle,
-  //                 style: pw.TextStyle(
-  //                   fontSize: 18,
-  //                   fontWeight: pw.FontWeight.bold,
-  //                   color: PdfColors.deepPurple800,
-  //                 ),
-  //               ),
-  //
-  //               pw.SizedBox(height: 8),
-  //
-  //               pw.Wrap(
-  //                 spacing: 8,
-  //                 runSpacing: 6,
-  //                 children: [
-  //                   _chip('Site: $siteCode'),
-  //                   _chip('Site Name: $siteName'),
-  //
-  //                   // Ensure Site Name is included
-  //                   _chip(dateStr),
-  //                   if (submitterLine.isNotEmpty)
-  //                     _chip('Submitted: $submitterLine'),
-  //                 ],
-  //               ),
-  //               pw.SizedBox(height: 14),
-  //               pw.Row(
-  //                 children: [
-  //                   pw.Expanded(
-  //                     child: _metricCard(
-  //                       title: 'Score',
-  //                       value: '${obtained.round()}/${total.round()}',
-  //                       color: PdfColors.deepPurple700,
-  //                     ),
-  //                   ),
-  //                   pw.SizedBox(width: 12),
-  //                   pw.Expanded(
-  //                     child: _metricCard(
-  //                       title: 'Total Percentage',
-  //                       value: '${percent.toStringAsFixed(1)}%',
-  //                       color: PdfColors.deepPurple,
-  //                     ),
-  //                   ),
-  //                 ],
-  //               ),
-  //             ],
-  //           ),
-  //         ),
-  //
-  //         pw.SizedBox(height: 18),
-  //
-  //         // ===== Categories with spanned remarks =====
-  //         ...byCategory.entries.map((entry) {
-  //           final catName = entry.key;
-  //           final qs = entry.value;
-  //           final catRemark = remarksMap[catName] ?? '';
-  //           return pw.Column(
-  //             children: [
-  //               _categoryBlock(catName, qs, catRemark),
-  //               pw.SizedBox(height: 12),
-  //             ],
-  //           );
-  //         }),
-  //
-  //         if (overallFeedback.trim().isNotEmpty) ...[
-  //           pw.SizedBox(height: 6),
-  //           pw.Container(
-  //             padding: const pw.EdgeInsets.all(12),
-  //             decoration: pw.BoxDecoration(
-  //               color: PdfColors.indigo50,
-  //               border: pw.Border.all(color: PdfColors.indigo100, width: 0.8),
-  //               borderRadius: pw.BorderRadius.circular(10),
-  //             ),
-  //             child: pw.Column(
-  //               crossAxisAlignment: pw.CrossAxisAlignment.start,
-  //               children: [
-  //                 pw.Text(
-  //                   'Feedback & Remarks',
-  //                   style: pw.TextStyle(
-  //                     fontSize: 12,
-  //                     color: PdfColors.indigo800,
-  //                     fontWeight: pw.FontWeight.bold,
-  //                   ),
-  //                 ),
-  //                 pw.SizedBox(height: 6),
-  //                 pw.Text(
-  //                   overallFeedback,
-  //                   style: const pw.TextStyle(
-  //                     fontSize: 11,
-  //                     color: PdfColors.grey800,
-  //                   ),
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //         ],
-  //       ],
-  //       footer: (context) => pw.Container(
-  //         alignment: pw.Alignment.centerRight,
-  //         margin: const pw.EdgeInsets.only(top: 12),
-  //         child: pw.Text(
-  //           'Page ${context.pageNumber} of ${context.pagesCount}',
-  //           style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  //
-  //   return pdf.save();
-  // }
-
 
   // --------- PDF builder with fixed header + spanned remarks ----------
-  Future<Uint8List> _buildPdfBytesWithFormat(
-      SurveyResultModel result,
+
+  Future<Uint8List> _buildPdfBytesWithFormat(SurveyResultModel result,
       PdfPageFormat pageFormat, {
         String? resolvedSiteName,
+
       }) async {
     final data = _processSurveyData(result);
     final siteName = resolvedSiteName ?? 'Unknown Site'; // Default if null
@@ -604,7 +264,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     final dateStr = DateFormat('MMMM d, y - h:mm a').format(timestamp);
 
     final surveyTitle = (() {
-      if ((result.surveyTitle ?? '').trim().isNotEmpty) {
+      if ((result.surveyTitle ?? '')
+          .trim()
+          .isNotEmpty) {
         return result.surveyTitle!.trim();
       }
       final fromData = (data['siteName']?.toString().trim() ?? '');
@@ -690,7 +352,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     // Section builder producing a table with a spanning remarks panel.
     pw.Widget _categoryBlock(String catName, List qs, String catRemark) {
       // Compute category score
-      double catObt = 0, catMax = 0;
+      double catObt = 0,
+          catMax = 0;
       for (final q in qs) {
         catObt += _qObtainedMarks(q);
         catMax += _qMaxMarks(q);
@@ -718,7 +381,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               _buildPdfCell('Marks', bold: true, alignEnd: true),
             ],
           ),
-          ...qs.asMap().entries.map((e) {
+          ...qs
+              .asMap()
+              .entries
+              .map((e) {
             final i = e.key;
             final q = e.value;
             final qText = _qText(q);
@@ -791,7 +457,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                 ),
                 pw.Text(
                   // FIX: Replace • with - to avoid colon breaking issues
-                  '${catPercent.toStringAsFixed(1)}% - ${catObt.round()}/${catMax.round()}',
+                  '${catPercent.toStringAsFixed(1)}% - ${catObt
+                      .round()}/${catMax.round()}',
                   style: const pw.TextStyle(
                     fontSize: 10,
                     color: PdfColors.grey700,
@@ -817,7 +484,8 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       pw.MultiPage(
         pageFormat: pageFormat,
         margin: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-        build: (_) => [
+        build: (_) =>
+        [
           // ===== Header (only Site code chip per requirement) =====
           pw.Container(
             width: double.infinity,
@@ -891,7 +559,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             );
           }),
 
-          if (overallFeedback.trim().isNotEmpty) ...[
+          if (overallFeedback
+              .trim()
+              .isNotEmpty) ...[
             pw.SizedBox(height: 6),
             pw.Container(
               padding: const pw.EdgeInsets.all(12),
@@ -924,14 +594,16 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             ),
           ],
         ],
-        footer: (context) => pw.Container(
-          alignment: pw.Alignment.centerRight,
-          margin: const pw.EdgeInsets.only(top: 12),
-          child: pw.Text(
-            'Page ${context.pageNumber} of ${context.pagesCount}',
-            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
-          ),
-        ),
+        footer: (context) =>
+            pw.Container(
+              alignment: pw.Alignment.centerRight,
+              margin: const pw.EdgeInsets.only(top: 12),
+              child: pw.Text(
+                'Page ${context.pageNumber} of ${context.pagesCount}',
+                style: const pw.TextStyle(
+                    fontSize: 10, color: PdfColors.grey600),
+              ),
+            ),
       ),
     );
 
@@ -939,9 +611,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   }
 
 
-
-  pw.Widget _buildPdfCell(
-    String text, {
+  pw.Widget _buildPdfCell(String text, {
     bool bold = false,
     bool alignEnd = false,
   }) {
@@ -980,18 +650,18 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
         String? saved;
         try {
           saved =
-              await saver.saveFile(
-                    name: baseName,
-                    bytes: bytes,
-                    ext: 'pdf',
-                    mimeType: MimeType.pdf,
-                  )
-                  as String?;
+          await saver.saveFile(
+            name: baseName,
+            bytes: bytes,
+            ext: 'pdf',
+            mimeType: MimeType.pdf,
+          )
+          as String?;
         } catch (_) {
           try {
             saved =
-                await saver.saveFile(baseName, bytes, 'pdf', MimeType.pdf)
-                    as String?;
+            await saver.saveFile(baseName, bytes, 'pdf', MimeType.pdf)
+            as String?;
           } catch (_) {}
         }
         if (saved != null && saved.isNotEmpty) {
@@ -1028,8 +698,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     return file.path;
   }
 
-  Future<void> _downloadPdf(
-    SurveyResultModel result, {
+  Future<void> _downloadPdf(SurveyResultModel result, {
     String? siteName,
   }) async {
     setState(() => _exporting = true);
@@ -1041,7 +710,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       );
 
       final filename =
-          'survey_${result.responseId ?? DateTime.now().millisecondsSinceEpoch}.pdf';
+          'survey_${result.responseId ?? DateTime
+          .now()
+          .millisecondsSinceEpoch}.pdf';
 
       // 1) Save
       final path = await _savePdfToBestPlace(bytes, filename);
@@ -1067,6 +738,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     final resultState = ref.watch(resultNotifierProvider);
@@ -1082,9 +754,13 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            final currentRoute = GoRouter.of(context).location;
+            final currentRoute = GoRouter
+                .of(context)
+                .location;
             if (currentRoute == '/home') {
-              ref.read(selectedIndexProvider.notifier).state = 0;
+              ref
+                  .read(selectedIndexProvider.notifier)
+                  .state = 0;
             } else {
               context.goNamed(Routes.home);
             }
@@ -1096,88 +772,92 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             onPressed: _exporting
                 ? null
                 : () {
-                    final current = ref.read(resultNotifierProvider);
-                    current.when(
-                      data: (res) {
-                        // Resolve site name here (sync from provider)
-                        final siteCode = (res.siteCode ?? res.outletCode ?? '')
-                            .trim();
-                        final sitesAsync = ref.read(allSitesProvider);
-                        String? siteName;
-                        sitesAsync.maybeWhen(
-                          data: (List<Sites> sites) {
-                            siteName = sites
-                                .firstWhere(
-                                  (s) =>
-                                      (s.siteCode ?? '').toString().trim() ==
-                                      siteCode,
-                                  orElse: () => Sites(),
-                                )
-                                .name;
-                          },
-                          orElse: () {},
-                        );
-                        _downloadPdf(res, siteName: siteName);
-                      },
-                      loading: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please wait, loading result...'),
-                        ),
+              final current = ref.read(resultNotifierProvider);
+              current.when(
+                data: (res) {
+                  // Resolve site name here (sync from provider)
+                  final siteCode = (res.siteCode ?? res.outletCode ?? '')
+                      .trim();
+                  final sitesAsync = ref.read(allSitesProvider);
+                  String? siteName;
+                  // sitesAsync.maybeWhen(
+                  //   data: (List<Sites> sites) {
+                  //     siteName = sites
+                  //         .firstWhere(
+                  //           (s) =>
+                  //       (s.siteCode ?? '').toString().trim() ==
+                  //           siteCode,
+                  //       orElse: () => Sites(),
+                  //     )
+                  //         .name;
+                  //   },
+                  //   orElse: () {},
+                  // );
+                  _downloadPdf(res, siteName: siteName);
+                },
+                loading: () =>
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please wait, loading result...'),
                       ),
-                      error: (e, _) =>
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Cannot export: $e')),
-                          ),
-                    );
-                  },
+                    ),
+                error: (e, _) =>
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Cannot export: $e')),
+                    ),
+              );
+            },
             icon: _exporting
                 ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
                 : const Icon(Icons.download_rounded),
           ),
         ],
       ),
       body: resultState.when(
-        loading: () => Center(
-          child: CircularProgressIndicator(color: theme.colorScheme.primary),
-        ),
-        error: (error, stackTrace) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                error.toString().contains('token') ||
+        loading: () =>
+            Center(
+              child: CircularProgressIndicator(
+                  color: theme.colorScheme.primary),
+            ),
+        error: (error, stackTrace) =>
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    error.toString().contains('token') ||
                         error.toString().contains('Authorization')
-                    ? 'Authentication failed. Please login again.'
-                    : 'Failed to load survey result: $error',
-                textAlign: TextAlign.center,
+                        ? 'Authentication failed. Please login again.'
+                        : 'Failed to load survey result: $error',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: () => _fetchResult(ref),
+                    child: const Text('Retry'),
+                  ),
+                  if (error.toString().contains('token'))
+                    TextButton(
+                      onPressed: () => context.goNamed(Routes.signIn),
+                      child: const Text('Go to Login'),
+                    ),
+                ],
               ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: () => _fetchResult(ref),
-                child: const Text('Retry'),
-              ),
-              if (error.toString().contains('token'))
-                TextButton(
-                  onPressed: () => context.goNamed(Routes.signIn),
-                  child: const Text('Go to Login'),
-                ),
-            ],
-          ),
-        ),
+            ),
         data: (result) {
           final processedData = _processSurveyData(result);
 
           final rawObt =
               (processedData['overall']?['obtainedMarks'] as num?)
                   ?.toDouble() ??
-              0.0;
+                  0.0;
           final rawTot =
               (processedData['overall']?['totalMarks'] as num?)?.toDouble() ??
-              0.0;
+                  0.0;
           final obtainedForCalc = rawObt <= rawTot ? rawObt : rawTot;
           final totalForCalc = rawTot >= rawObt ? rawTot : rawObt;
           final percent = totalForCalc == 0
@@ -1195,9 +875,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               siteNameResolved = sites
                   .firstWhere(
                     (s) =>
-                        (s.siteCode ?? '').toString().trim() == siteCode.trim(),
-                    orElse: () => Sites(),
-                  )
+                (s.siteCode ?? '').toString().trim() == siteCode.trim(),
+                orElse: () => Sites(),
+              )
                   .name;
             },
             orElse: () {},
@@ -1212,10 +892,11 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           final List<Map<String, dynamic>> categories =
               (processedData['categories'] as List?)
                   ?.cast<Map<String, dynamic>>() ??
-              [];
+                  [];
 
           return NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            headerSliverBuilder: (context, innerBoxIsScrolled) =>
+            [
               SliverToBoxAdapter(
                 child: ResultHeader(
                   siteCode: siteCode,
@@ -1260,3 +941,4 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     );
   }
 }
+
