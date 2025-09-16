@@ -8,6 +8,22 @@ PUBSPEC_FILE="pubspec.yaml"
 ANDROID_DIR="android"
 LOCAL_PROPERTIES="$ANDROID_DIR/local.properties"
 
+<<<<<<< HEAD
+=======
+# Detect OS and set appropriate paths
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    # Linux paths
+    KEYSTORE_PATH="${KEYSTORE_PATH:-/home/zahed/keystore/app-release.jks}"
+    ANDROID_SDK="${ANDROID_SDK:-/home/zahed/Android/Sdk}"
+    FLUTTER_SDK="${FLUTTER_SDK:-/home/zahed/tools/flutter}"
+else
+    # macOS paths (default)
+    KEYSTORE_PATH="${KEYSTORE_PATH:-/Users/md.zahedhasanrabbi/keystore/app-release.jks}"
+    ANDROID_SDK="${ANDROID_SDK:-/Users/md.zahedhasanrabbi/Library/Android/sdk}"
+    FLUTTER_SDK="${FLUTTER_SDK:-/Users/tools/flutter}"
+fi
+
+>>>>>>> origin/main
 echo "🔧 Bumping build number..."
 
 # Read current version line
@@ -31,6 +47,7 @@ else
 fi
 echo "✅ pubspec.yaml updated: version: ${NEW_VERSION}"
 
+<<<<<<< HEAD
 # Update local.properties with new version code
 if grep -q "flutter.versionCode" "$LOCAL_PROPERTIES"; then
  if sed --version >/dev/null 2>&1; then
@@ -42,6 +59,22 @@ else
  echo "flutter.versionCode=${BUILD_NUMBER}" >> "$LOCAL_PROPERTIES"
 fi
 echo "✅ local.properties updated: versionCode: ${BUILD_NUMBER}"
+=======
+# Create/update local.properties with OS-specific paths
+cat > "$LOCAL_PROPERTIES" << EOF
+sdk.dir=$ANDROID_SDK
+flutter.sdk=$FLUTTER_SDK
+KEYSTORE_PATH=$KEYSTORE_PATH
+KEYSTORE_PASSWORD=ZahedACI123
+KEY_ALIAS=app
+KEY_PASSWORD=ZahedACI123
+flutter.buildMode=release
+flutter.versionName=$VERSION_NAME
+flutter.versionCode=$BUILD_NUMBER
+EOF
+
+echo "✅ local.properties updated with OS-specific paths"
+>>>>>>> origin/main
 
 echo "🧹 Cleaning project..."
 flutter clean
@@ -53,6 +86,7 @@ flutter pub get
 
 echo "🔐 Verifying keystore configuration..."
 # Check if keystore exists
+<<<<<<< HEAD
 KEYSTORE_PATH=$(grep "KEYSTORE_PATH" "$LOCAL_PROPERTIES" | cut -d'=' -f2)
 if [[ -z "$KEYSTORE_PATH" ]]; then
   echo "❌ KEYSTORE_PATH not found in local.properties"
@@ -62,6 +96,12 @@ fi
 if [[ ! -f "$KEYSTORE_PATH" ]]; then
   echo "❌ Keystore file not found at: $KEYSTORE_PATH"
   echo "   Please check the path in local.properties"
+=======
+if [[ ! -f "$KEYSTORE_PATH" ]]; then
+  echo "❌ Keystore file not found at: $KEYSTORE_PATH"
+  echo "   Please copy your keystore to this location or update KEYSTORE_PATH"
+  echo "   You can get it from your Mac at: /Users/md.zahedhasanrabbi/keystore/app-release.jks"
+>>>>>>> origin/main
   exit 1
 fi
 echo "✅ Keystore found: $KEYSTORE_PATH"
@@ -101,6 +141,10 @@ if command -v apksigner >/dev/null 2>&1; then
   fi
 else
   echo "⚠️  apksigner not available, skipping signature verification"
+<<<<<<< HEAD
+=======
+  echo "   Install it via: sudo apt install apksigner"
+>>>>>>> origin/main
 fi
 
 # Copy to final location with version number
@@ -125,6 +169,7 @@ if command -v aapt >/dev/null 2>&1; then
     done
   else
     echo "⚠️  Could not read APK package info"
+<<<<<<< HEAD
   fi
 fi
 
@@ -132,5 +177,18 @@ fi
 ( command -v xdg-open >/dev/null && xdg-open "$(dirname "$FINAL_APK")" ) \
  || ( command -v open >/dev/null && open "$(dirname "$FINAL_APK")" ) \
  || true
+=======
+    echo "   Install aapt via: sudo apt install aapt"
+  fi
+else
+  echo "⚠️  aapt not available, skipping package info check"
+  echo "   Install it via: sudo apt install aapt"
+fi
+
+# Open the folder in file manager
+if command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$(dirname "$FINAL_APK")" 2>/dev/null || true
+fi
+>>>>>>> origin/main
 
 echo "🎉 Build process completed successfully!"
