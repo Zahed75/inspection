@@ -98,25 +98,22 @@ class CategoryBlock {
   String toString() => 'CategoryBlock{name: $name, questions: $questions}';
 }
 
+// In your SurveyResultModel class
 class SurveyResultModel {
   String? message;
   int? responseId;
   double? obtainedScore;
   int? totalScore;
   double? percentage;
-
   String? submittedBy;
   String? submittedUserPhone;
   String? submittedAt;
-
   String? siteCode;
+  String? siteName;
   String? outletCode;
-
   String? surveyTitle;
-
   List<SubmittedQuestions>? submittedQuestions;
   int? userId;
-
   List<CategoryBlock>? categories;
 
   SurveyResultModel({
@@ -129,6 +126,7 @@ class SurveyResultModel {
     this.submittedUserPhone,
     this.submittedAt,
     this.siteCode,
+    this.siteName,
     this.outletCode,
     this.surveyTitle,
     this.submittedQuestions,
@@ -136,79 +134,57 @@ class SurveyResultModel {
     this.categories,
   });
 
-  // toJson method to serialize SurveyResultModel
+  // Add this toJson method
   Map<String, dynamic> toJson() {
-    return {
-      'message': message,
-      'response_id': responseId,
-      'obtained_score': obtainedScore,
-      'total_score': totalScore,
-      'percentage': percentage,
-      'submitted_by': submittedBy,
-      'submitted_user_phone': submittedUserPhone,
-      'submitted_at': submittedAt,
-      'site_code': siteCode,
-      'outlet_code': outletCode,
-      'survey_title': surveyTitle,
-      'submitted_questions': submittedQuestions
-          ?.map((e) => e.toJson())
-          .toList(),
-      'user_id': userId,
-      'categories': categories?.map((e) => e.toJson()).toList(),
-    };
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['message'] = message;
+    data['response_id'] = responseId;
+    data['obtained_score'] = obtainedScore;
+    data['total_score'] = totalScore;
+    data['percentage'] = percentage;
+    data['submitted_by'] = submittedBy;
+    data['submitted_user_phone'] = submittedUserPhone;
+    data['submitted_at'] = submittedAt;
+    data['site_code'] = siteCode;
+    data['site_name'] = siteName;
+    data['outlet_code'] = outletCode;
+    data['survey_title'] = surveyTitle;
+    data['user_id'] = userId;
+
+    if (submittedQuestions != null) {
+      data['submitted_questions'] = submittedQuestions!.map((v) => v.toJson()).toList();
+    }
+
+    if (categories != null) {
+      data['categories'] = categories!.map((v) => v.toJson()).toList();
+    }
+
+    return data;
   }
 
   factory SurveyResultModel.fromJson(Map<String, dynamic> json) {
-    final List<dynamic>? rawQs =
-        (json['submitted_questions'] ?? json['questions']) as List<dynamic>?;
-    final List<dynamic>? rawCats =
-        (json['categories'] ??
-                json['by_category'] ??
-                json['category_wise'] ??
-                json['categoryWise'])
-            as List<dynamic>?;
+    final List<dynamic>? rawQs = (json['submitted_questions'] ?? json['questions']) as List<dynamic>?;
+    final List<dynamic>? rawCats = (json['categories'] ?? json['by_category'] ?? json['category_wise'] ?? json['categoryWise']) as List<dynamic>?;
 
-    final List<SubmittedQuestions>? submittedQs = rawQs
-        ?.whereType<Map>()
-        ?.map(
-          (q) =>
-              SubmittedQuestions.fromJson(Map<String, dynamic>.from(q as Map)),
-        )
-        .toList();
-
-    final List<CategoryBlock>? cats = rawCats
-        ?.whereType<Map>()
-        ?.map(
-          (c) => CategoryBlock.fromJson(Map<String, dynamic>.from(c as Map)),
-        )
-        .toList();
+    final List<SubmittedQuestions>? submittedQs = rawQs?.whereType<Map>()?.map((q) => SubmittedQuestions.fromJson(Map<String, dynamic>.from(q as Map))).toList();
+    final List<CategoryBlock>? cats = rawCats?.whereType<Map>()?.map((c) => CategoryBlock.fromJson(Map<String, dynamic>.from(c as Map))).toList();
 
     return SurveyResultModel(
       message: json['message']?.toString(),
       responseId: (json['response_id'] ?? json['id']) as int?,
       obtainedScore: (json['obtained_score'] as num?)?.toDouble(),
-      totalScore: (json['total_score'] is num)
-          ? (json['total_score'] as num).toInt()
-          : null,
+      totalScore: (json['total_score'] is num) ? (json['total_score'] as num).toInt() : null,
       percentage: (json['percentage'] as num?)?.toDouble(),
-      submittedBy: (json['submitted_user_name'] ?? json['submitted_by'])
-          ?.toString(),
-      submittedUserPhone: (json['submitted_user_phone'] ?? json['phone'])
-          ?.toString(),
+      submittedBy: (json['submitted_user_name'] ?? json['submitted_by'])?.toString(),
+      submittedUserPhone: (json['submitted_user_phone'] ?? json['phone'])?.toString(),
       submittedAt: (json['submitted_at'] ?? json['created_at'])?.toString(),
       siteCode: json['site_code']?.toString(),
+      siteName: json['site_name']?.toString(),
       outletCode: (json['outlet_code'] ?? json['outletCode'])?.toString(),
       surveyTitle: (json['survey_title'] ?? json['title'])?.toString(),
       submittedQuestions: submittedQs,
-      userId: (json['user_id'] is num)
-          ? (json['user_id'] as num).toInt()
-          : null,
+      userId: (json['user_id'] is num) ? (json['user_id'] as num).toInt() : null,
       categories: cats,
     );
-  }
-
-  @override
-  String toString() {
-    return 'SurveyResultModel{message: $message, responseId: $responseId, obtainedScore: $obtainedScore, totalScore: $totalScore, percentage: $percentage, submittedBy: $submittedBy, submittedUserPhone: $submittedUserPhone, submittedAt: $submittedAt, siteCode: $siteCode, outletCode: $outletCode, surveyTitle: $surveyTitle, submittedQuestions: $submittedQuestions, userId: $userId, categories: $categories}';
   }
 }

@@ -240,13 +240,13 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
   // --------- PDF builder with fixed header + spanned remarks ----------
 
-  Future<Uint8List> _buildPdfBytesWithFormat(SurveyResultModel result,
+  Future<Uint8List> _buildPdfBytesWithFormat(
+      SurveyResultModel result,
       PdfPageFormat pageFormat, {
-        String? resolvedSiteName,
-
+        required String resolvedSiteName, // ✅ Changed parameter name to match what's being passed
       }) async {
     final data = _processSurveyData(result);
-    final siteName = resolvedSiteName ?? 'Unknown Site'; // Default if null
+    final siteName = resolvedSiteName; // ✅ Use the parameter directly
 
     final allQs = (result.submittedQuestions ?? []).toList();
     final nonRemarks = allQs.where((q) => _qType(q) != 'remarks').toList();
@@ -264,9 +264,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     final dateStr = DateFormat('MMMM d, y - h:mm a').format(timestamp);
 
     final surveyTitle = (() {
-      if ((result.surveyTitle ?? '')
-          .trim()
-          .isNotEmpty) {
+      if ((result.surveyTitle ?? '').trim().isNotEmpty) {
         return result.surveyTitle!.trim();
       }
       final fromData = (data['siteName']?.toString().trim() ?? '');
@@ -281,8 +279,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     final total = rawTot >= rawObt ? rawTot : rawObt;
     final percent = total == 0 ? 0.0 : (obtained / total * 100.0);
 
-    final overallFeedback =
-        data['feedback']?.toString() ?? 'No feedback submitted.';
+    final overallFeedback = data['feedback']?.toString() ?? 'No feedback submitted.';
 
     final submitterName = (result.submittedBy ?? '').toString().trim();
     final submitterPhone = (result.submittedUserPhone ?? '').toString().trim();
@@ -349,11 +346,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       );
     }
 
-    // Section builder producing a table with a spanning remarks panel.
-    pw.Widget _categoryBlock(String catName, List qs, String catRemark) {
+    // Add this method to your _ResultScreenState class
+    pw.Widget _buildCategoryBlock(String catName, List qs, String catRemark) {
       // Compute category score
-      double catObt = 0,
-          catMax = 0;
+      double catObt = 0, catMax = 0;
       for (final q in qs) {
         catObt += _qObtainedMarks(q);
         catMax += _qMaxMarks(q);
@@ -381,10 +377,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               _buildPdfCell('Marks', bold: true, alignEnd: true),
             ],
           ),
-          ...qs
-              .asMap()
-              .entries
-              .map((e) {
+          ...qs.asMap().entries.map((e) {
             final i = e.key;
             final q = e.value;
             final qText = _qText(q);
@@ -441,7 +434,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
-          // Category header line - FIXED: Replace • with - to avoid colon issues
           pw.Container(
             margin: const pw.EdgeInsets.only(bottom: 6),
             child: pw.Row(
@@ -456,9 +448,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   ),
                 ),
                 pw.Text(
-                  // FIX: Replace • with - to avoid colon breaking issues
-                  '${catPercent.toStringAsFixed(1)}% - ${catObt
-                      .round()}/${catMax.round()}',
+                  '${catPercent.toStringAsFixed(1)}% - ${catObt.round()}/${catMax.round()}',
                   style: const pw.TextStyle(
                     fontSize: 10,
                     color: PdfColors.grey700,
@@ -467,7 +457,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               ],
             ),
           ),
-          // The grid: left table + right spanning remarks
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
@@ -484,9 +473,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       pw.MultiPage(
         pageFormat: pageFormat,
         margin: const pw.EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-        build: (_) =>
-        [
-          // ===== Header (only Site code chip per requirement) =====
+        build: (_) => [
           pw.Container(
             width: double.infinity,
             padding: const pw.EdgeInsets.all(16),
@@ -513,11 +500,11 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   spacing: 8,
                   runSpacing: 6,
                   children: [
-                    _chip('Site- $siteCode'), // Changed : to -
-                    _chip('Site Name- $siteName'), // Changed : to -
+                    _chip('Site- $siteCode'),
+                    _chip('Site Name- $resolvedSiteName'), // ✅ Use the parameter
                     _chip(dateStr),
                     if (submitterLine.isNotEmpty)
-                      _chip('Submitted- $submitterLine'), // Changed : to -
+                      _chip('Submitted- $submitterLine'),
                   ],
                 ),
                 pw.SizedBox(height: 14),
@@ -546,22 +533,20 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
           pw.SizedBox(height: 18),
 
-          // ===== Categories with spanned remarks =====
+
           ...byCategory.entries.map((entry) {
             final catName = entry.key;
             final qs = entry.value;
             final catRemark = remarksMap[catName] ?? '';
             return pw.Column(
               children: [
-                _categoryBlock(catName, qs, catRemark),
+                _buildCategoryBlock(catName, qs, catRemark),
                 pw.SizedBox(height: 12),
               ],
             );
           }),
 
-          if (overallFeedback
-              .trim()
-              .isNotEmpty) ...[
+          if (overallFeedback.trim().isNotEmpty) ...[
             pw.SizedBox(height: 6),
             pw.Container(
               padding: const pw.EdgeInsets.all(12),
@@ -594,16 +579,14 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             ),
           ],
         ],
-        footer: (context) =>
-            pw.Container(
-              alignment: pw.Alignment.centerRight,
-              margin: const pw.EdgeInsets.only(top: 12),
-              child: pw.Text(
-                'Page ${context.pageNumber} of ${context.pagesCount}',
-                style: const pw.TextStyle(
-                    fontSize: 10, color: PdfColors.grey600),
-              ),
-            ),
+        footer: (context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(top: 12),
+          child: pw.Text(
+            'Page ${context.pageNumber} of ${context.pagesCount}',
+            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+          ),
+        ),
       ),
     );
 
@@ -698,26 +681,21 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     return file.path;
   }
 
-  Future<void> _downloadPdf(SurveyResultModel result, {
-    String? siteName,
-  }) async {
+  Future<void> _downloadPdf(SurveyResultModel result) async {
     setState(() => _exporting = true);
     try {
+      // ✅ Use the site name directly from the API response
+      final String siteName = result.siteName ?? 'Unknown Site';
+
       final bytes = await _buildPdfBytesWithFormat(
         result,
         PdfPageFormat.a4,
-        resolvedSiteName: siteName,
+        resolvedSiteName: siteName, // ✅ Use correct parameter name
       );
 
-      final filename =
-          'survey_${result.responseId ?? DateTime
-          .now()
-          .millisecondsSinceEpoch}.pdf';
+      final filename = 'survey_${result.responseId ?? DateTime.now().millisecondsSinceEpoch}.pdf';
 
-      // 1) Save
       final path = await _savePdfToBestPlace(bytes, filename);
-
-      // 2) Native preview (print dialog) then Share sheet (keeps UX simple)
       await Printing.layoutPdf(onLayout: (_) async => bytes);
       await Printing.sharePdf(bytes: bytes, filename: filename);
 
@@ -730,14 +708,13 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to generate PDF: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate PDF: $e')),
+      );
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -769,42 +746,19 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
         actions: [
           IconButton(
             tooltip: 'Download / Preview',
-            onPressed: _exporting
-                ? null
-                : () {
+            onPressed: _exporting ? null : () {
               final current = ref.read(resultNotifierProvider);
               current.when(
                 data: (res) {
-                  // Resolve site name here (sync from provider)
-                  final siteCode = (res.siteCode ?? res.outletCode ?? '')
-                      .trim();
-                  final sitesAsync = ref.read(allSitesProvider);
-                  String? siteName;
-                  // sitesAsync.maybeWhen(
-                  //   data: (List<Sites> sites) {
-                  //     siteName = sites
-                  //         .firstWhere(
-                  //           (s) =>
-                  //       (s.siteCode ?? '').toString().trim() ==
-                  //           siteCode,
-                  //       orElse: () => Sites(),
-                  //     )
-                  //         .name;
-                  //   },
-                  //   orElse: () {},
-                  // );
-                  _downloadPdf(res, siteName: siteName);
+                  // ✅ Just call _downloadPdf with the result - it will use the site_name from API
+                  _downloadPdf(res);
                 },
-                loading: () =>
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please wait, loading result...'),
-                      ),
-                    ),
-                error: (e, _) =>
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Cannot export: $e')),
-                    ),
+                loading: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please wait, loading result...')),
+                ),
+                error: (e, _) => ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Cannot export: $e')),
+                ),
               );
             },
             icon: _exporting
