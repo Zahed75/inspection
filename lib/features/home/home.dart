@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:inspection/features/home/provider/survey_api_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../app/router/routes.dart';
 import '../../common_ui/widgets/alerts/u_alert.dart';
 import '../../features/site/provider/selected_site_provider.dart';
@@ -174,7 +173,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       'Home',
                       style: Theme.of(context).textTheme.titleLarge!.copyWith(
                         fontWeight: FontWeight.w900,
-                        color: UColors.warning,
+                        color: UColors.darkerGrey,
                       ),
                     ),
                   ),

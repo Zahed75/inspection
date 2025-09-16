@@ -738,25 +738,6 @@ class _QuestionScreenState extends ConsumerState<QuestionScreen> {
     );
   }
 
-  // Widget _buildTextInput(int id) {
-  //   final theme = Theme.of(context);
-  //   return TextField(
-  //     maxLines: 3,
-  //     onChanged: (val) {
-  //       ref.read(answersProvider.notifier).update((state) {
-  //         return {...state, id: val};
-  //       });
-  //     },
-  //     style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-  //     decoration: InputDecoration(
-  //       hintText: "Type your response here...",
-  //       hintStyle: TextStyle(color: theme.textTheme.bodySmall?.color),
-  //       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-  //       filled: true,
-  //       fillColor: theme.colorScheme.surface,
-  //     ),
-  //   );
-  // }
 
 
   Widget _buildTextInput(int id) {

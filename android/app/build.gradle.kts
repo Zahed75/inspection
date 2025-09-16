@@ -4,7 +4,6 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -23,14 +22,12 @@ android {
 
     defaultConfig {
         applicationId = "com.example.inspection"
-        // flutter_local_notifications needs at least 21
         minSdk = maxOf(21, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
-    // Java 11 + desugaring (needed by some libs)
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -43,42 +40,35 @@ android {
 
     signingConfigs {
         create("release") {
-            val ks = keystoreProperties.getProperty("KEYSTORE_PATH")
-                ?: error("KEYSTORE_PATH missing in local.properties")
-            storeFile = rootProject.file(ks)        // ← use rootProject.file(...)
-            storePassword = keystoreProperties.getProperty("KEYSTORE_PASSWORD")
-            keyAlias = keystoreProperties.getProperty("KEY_ALIAS")
-            keyPassword = keystoreProperties.getProperty("KEY_PASSWORD")
+            storeFile = file(keystoreProperties.getProperty("KEYSTORE_PATH") ?: "")
+            storePassword = keystoreProperties.getProperty("KEYSTORE_PASSWORD") ?: ""
+            keyAlias = keystoreProperties.getProperty("KEY_ALIAS") ?: ""
+            keyPassword = keystoreProperties.getProperty("KEY_PASSWORD") ?: ""
         }
+
+        // For debug builds, you can use the same keystore or remove this section
+        // to use the default debug keystore
         getByName("debug") {
             val ks = keystoreProperties.getProperty("KEYSTORE_PATH")
-                ?: error("KEYSTORE_PATH missing in local.properties")
-            storeFile = rootProject.file(ks)        // ← use rootProject.file(...)
-            storePassword = keystoreProperties.getProperty("KEYSTORE_PASSWORD")
-            keyAlias = keystoreProperties.getProperty("KEY_ALIAS")
-            keyPassword = keystoreProperties.getProperty("KEY_PASSWORD")
+            if (ks != null) {
+                storeFile = rootProject.file(ks)
+                storePassword = keystoreProperties.getProperty("KEYSTORE_PASSWORD")
+                keyAlias = keystoreProperties.getProperty("KEY_ALIAS")
+                keyPassword = keystoreProperties.getProperty("KEY_PASSWORD")
+            }
         }
     }
 
-
     buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
         getByName("debug") {
             signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
-            isShrinkResources = false // keep off unless you also enable minify
-        }
-        getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
-            // Start simple; turn these on later with proper ProGuard rules.
-            isMinifyEnabled = false
             isShrinkResources = false
-            // If/when you enable shrinking:
-            // isMinifyEnabled = true
-            // isShrinkResources = true
-            // proguardFiles(
-            //     getDefaultProguardFile("proguard-android-optimize.txt"),
-            //     "proguard-rules.pro"
-            // )
         }
     }
 }
@@ -88,6 +78,5 @@ flutter {
 }
 
 dependencies {
-    // Required when isCoreLibraryDesugaringEnabled = true
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
